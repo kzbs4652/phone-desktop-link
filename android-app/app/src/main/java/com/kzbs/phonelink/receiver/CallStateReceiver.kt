@@ -6,6 +6,7 @@ import android.content.Intent
 import android.telephony.TelephonyManager
 import com.google.gson.JsonObject
 import com.kzbs.phonelink.service.PhoneLinkService
+import com.kzbs.phonelink.service.PhoneInCallService
 
 class CallStateReceiver : BroadcastReceiver() {
     companion object {
@@ -14,6 +15,7 @@ class CallStateReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == TelephonyManager.ACTION_PHONE_STATE_CHANGED) {
+            if (PhoneInCallService.instance != null) return
             val stateStr = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
             val incomingNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER) ?: "Bilinmeyen Numara"
 

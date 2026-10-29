@@ -155,6 +155,83 @@ body {
   font-weight: 500;
 }
 
+.pairing-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 13px 28px;
+  background: rgba(0, 242, 254, 0.055);
+  border-bottom: 1px solid var(--glass-border);
+}
+.pairing-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.pairing-copy strong {
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+}
+.pairing-copy span {
+  overflow-wrap: anywhere;
+}
+.pairing-code-wrap {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.pairing-code-wrap strong {
+  color: var(--neon-cyan);
+  font-size: 24px;
+  letter-spacing: 5px;
+}
+.pairing-code-wrap button { -webkit-app-region: no-drag; }
+.update-dialog {
+  position: fixed; inset: 0; z-index: 50; display: flex; align-items: center;
+  justify-content: center; padding: 24px; background: rgba(0, 0, 0, .66);
+  backdrop-filter: blur(12px);
+}
+.update-dialog-card {
+  position: relative; width: min(440px, 100%); padding: 30px;
+  border: 1px solid var(--glass-border-glow); border-radius: 24px;
+  background: #111a2b; box-shadow: 0 24px 90px rgba(0, 0, 0, .6); text-align: center;
+}
+.update-dialog-close {
+  position: absolute; top: 12px; right: 15px; border: 0; background: none;
+  color: var(--text-muted); font-size: 27px; cursor: pointer;
+}
+.update-dialog-icon {
+  width: 48px; height: 48px; margin: 0 auto 14px; border-radius: 16px;
+  background: rgba(0, 242, 254, .13); color: var(--neon-cyan); font-size: 34px; line-height: 44px;
+}
+.update-dialog-card h2 { margin-bottom: 8px; font-size: 20px; }
+.update-dialog-version { color: var(--neon-cyan); font-weight: 700; }
+.update-dialog-notes, .update-download-status { margin-top: 12px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+.update-dialog-actions { display: flex; gap: 10px; margin-top: 22px; }
+.update-dialog-actions button, .update-reveal-btn { flex: 1; min-height: 42px; border-radius: 13px; font-weight: 700; cursor: pointer; }
+.update-later-btn { border: 1px solid var(--glass-border); background: rgba(255,255,255,.06); color: var(--text-main); }
+.update-download-btn { border: 0; background: var(--neon-cyan); color: #07111a; }
+.update-reveal-btn { width: 100%; margin-top: 10px; border: 1px solid var(--glass-border); background: rgba(255,255,255,.06); color: var(--text-main); }
+.header-status-pill .status-dot {
+  background: var(--ios-yellow);
+  box-shadow: 0 0 10px var(--ios-yellow);
+  animation: none;
+}
+.header-status-pill.connected .status-dot {
+  background: var(--ios-green);
+  box-shadow: 0 0 10px var(--ios-green);
+  animation: pulseDot 2s infinite;
+}
+
 .status-dot {
   width: 10px;
   height: 10px;
@@ -195,9 +272,16 @@ body {
 }
 .battery-level-fill {
   height: 100%;
-  width: 84%;
+  width: 0%;
   background: var(--ios-green);
   border-radius: 1px;
+}
+
+@media (max-width: 780px) {
+  .pairing-panel { padding: 10px 16px; gap: 12px; }
+  .pairing-copy strong { font-size: 11px; }
+  .pairing-copy span { font-size: 10px; }
+  .pairing-code-wrap strong { font-size: 20px; letter-spacing: 3px; }
 }
 
 /* App Main Content Viewport (Viewport Slider for iOS Transitions) */
@@ -774,11 +858,22 @@ body {
 
 .incall-controls-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px 36px;
-  max-width: 340px;
-  width: 100%;
+  grid-template-columns: repeat(5, minmax(56px, 1fr));
+  gap: 10px;
+  width: min(560px, 100%);
 }
+.incall-audio-note {
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 14px;
+}
+.incall-keypad[hidden], .incall-add-call[hidden] { display: none !important; }
+.incall-keypad { margin: 10px auto; width: min(240px, 90%); }
+.incall-keypad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.incall-keypad-grid button { min-height: 38px; border: 1px solid rgba(255,255,255,.14); border-radius: 12px; background: rgba(255,255,255,.1); color: #fff; font-size: 18px; }
+.incall-add-call { display: flex; gap: 8px; width: min(320px, 90%); margin: 10px auto; }
+.incall-add-call input { min-width: 0; flex: 1; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.1); color: #fff; }
+.incall-add-call button { padding: 8px 16px; border: 0; border-radius: 10px; background: var(--ios-green); color: #07110A; font-weight: 700; }
 
 .incall-action-btn {
   display: flex;

@@ -1,148 +1,266 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="#070B14"
-    android:padding="24dp">
+    android:fillViewport="true">
 
-    <!-- Brand Header -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="20dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="KZBS PhoneLink"
-            android:textColor="#FFFFFF"
-            android:textSize="22sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text=" v1.0.0"
-            android:textColor="#00F2FE"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- Connection Status Card -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="#162138"
-        android:padding="18dp"
-        android:layout_marginBottom="16dp">
+        android:padding="22dp">
 
-        <TextView
-            android:id="@+id/tvConnectionStatus"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="🟢 Arka Plan Servisi Aktif"
-            android:textColor="#30D158"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="6dp" />
+            android:layout_marginBottom="18dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:layout_width="wrap_content"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="KZBS PhoneLink"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvAppVersion"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" v1.0.5"
+                android:textColor="#00F2FE"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Bilgisayarınız açık olduğunda sıfır dokunuşla otomatik eşleşir."
-            android:textColor="#8E8E93"
-            android:textSize="13sp" />
-    </LinearLayout>
+            android:layout_marginBottom="14dp"
+            android:background="#162138"
+            android:orientation="vertical"
+            android:padding="18dp">
 
-    <!-- Update Status Banner (Hidden if up-to-date) -->
-    <LinearLayout
-        android:id="@+id/layoutUpdateBanner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:background="#1E1430"
-        android:padding="12dp"
-        android:visibility="gone"
-        android:layout_marginBottom="12dp"
-        android:gravity="center_vertical">
+            <TextView
+                android:id="@+id/tvConnectionStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Bilgisayara bağlı değil"
+                android:textColor="#FFCC66"
+                android:textSize="17sp"
+                android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/tvUpdateBannerText"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="🚀 Yeni güncelleme mevcut!"
-            android:textColor="#00F2FE"
-            android:textSize="13sp"
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="7dp"
+                android:text="Telefon ve bilgisayar aynı Wi-Fi ağına bağlı olmalı. Bilgisayarı bulup eşleştirme koduyla bağlan."
+                android:textColor="#C3CAD8"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnDiscoverComputers"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginBottom="8dp"
+            android:backgroundTint="#00F2FE"
+            android:text="Bilgisayarları Bul"
+            android:textColor="#070B14"
             android:textStyle="bold" />
 
         <Button
-            android:id="@+id/btnDownloadUpdate"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:text="İndir"
-            android:textSize="12sp"
-            android:backgroundTint="#00F2FE"
-            android:textColor="#070B14" />
-    </LinearLayout>
+            android:id="@+id/btnScanQr"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="12dp"
+            android:backgroundTint="#162138"
+            android:text="QR Koduyla Eşleştir"
+            android:textColor="#00F2FE" />
 
-    <!-- Control Buttons -->
-    <Button
-        android:id="@+id/btnPermissions"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:text="🛡️ İzinleri Kontrol Et / Ver"
-        android:backgroundTint="#00F2FE"
-        android:textColor="#070B14"
-        android:textStyle="bold"
-        android:layout_marginBottom="10dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:text="Bulunan bilgisayarlar"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
 
-    <Button
-        android:id="@+id/btnCheckUpdates"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:text="🔄 Yazılım Güncellemelerini Denetle"
-        android:backgroundTint="#162138"
-        android:textColor="#00F2FE"
-        android:layout_marginBottom="10dp" />
+        <LinearLayout
+            android:id="@+id/layoutDiscoveredComputers"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:orientation="vertical" />
 
-    <Button
-        android:id="@+id/btnToggleService"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:text="🛑 Köprüyü Duraklat / Kapat"
-        android:backgroundTint="#2C1217"
-        android:textColor="#FF453A"
-        android:layout_marginBottom="16dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Bilgisayar adresi"
+            android:textColor="#C3CAD8"
+            android:textSize="13sp" />
 
-    <!-- Live Event Log -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Canlı Hareket Günlüğü:"
-        android:textColor="#8E8E93"
-        android:textSize="13sp"
-        android:layout_marginBottom="6dp" />
+        <EditText
+            android:id="@+id/editPcAddress"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="10dp"
+            android:autofillHints=""
+            android:hint="Örn. 192.168.1.20"
+            android:inputType="text"
+            android:singleLine="true"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#8E8E93" />
 
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:background="#0C1322"
-        android:padding="12dp">
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Bilgisayardaki eşleştirme kodu"
+            android:textColor="#C3CAD8"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/editPairingCode"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="10dp"
+            android:autofillHints=""
+            android:hint="6 haneli kod"
+            android:inputType="numberPassword"
+            android:maxLength="6"
+            android:singleLine="true"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#8E8E93" />
+
+        <Button
+            android:id="@+id/btnConnectPc"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginBottom="8dp"
+            android:backgroundTint="#30D158"
+            android:text="Bilgisayara Bağlan"
+            android:textColor="#07110A"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnDisconnect"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:layout_marginBottom="8dp"
+            android:backgroundTint="#2C1217"
+            android:text="Bağlantıyı Kes"
+            android:textColor="#FF453A" />
+
+        <Button
+            android:id="@+id/btnPermissions"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:layout_marginBottom="8dp"
+            android:backgroundTint="#162138"
+            android:text="Telefon İzinlerini Ver / Kontrol Et"
+            android:textColor="#00F2FE" />
+
+        <Button
+            android:id="@+id/btnEnableCallControls"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="5dp"
+            android:backgroundTint="#162138"
+            android:text="Bilgisayardan Arama Denetimini Aç"
+            android:textColor="#00F2FE" />
+
+        <TextView
+            android:id="@+id/tvCallControlStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="Arama tuşları için bu uygulamayı varsayılan telefon uygulaması yapman gerekir."
+            android:textColor="#C3CAD8"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/btnBatteryOptimization"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:layout_marginBottom="8dp"
+            android:backgroundTint="#162138"
+            android:text="Pil Kısıtlamasını Kaldır"
+            android:textColor="#00F2FE" />
+
+        <LinearLayout
+            android:id="@+id/layoutUpdateBanner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="8dp"
+            android:background="#1E1430"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="10dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvUpdateBannerText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Yeni sürüm mevcut"
+                android:textColor="#00F2FE"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnDownloadUpdate"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:backgroundTint="#00F2FE"
+                android:text="Şimdi indir"
+                android:textColor="#070B14"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnLaterUpdate"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginStart="6dp"
+                android:backgroundTint="#162138"
+                android:text="Daha sonra"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnCheckUpdates"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginBottom="10dp"
+            android:backgroundTint="#162138"
+            android:text="Güncellemeleri Denetle"
+            android:textColor="#00F2FE" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="5dp"
+            android:text="Bağlantı günlüğü"
+            android:textColor="#8E8E93"
+            android:textSize="13sp" />
 
         <TextView
             android:id="@+id/tvLogStream"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Sistem hazır. Olaylar bekleniyor..."
+            android:layout_height="120dp"
+            android:background="#0C1322"
+            android:fontFamily="monospace"
+            android:padding="10dp"
+            android:text="Hazır. Bilgisayarları bulmak için düğmeye bas."
             android:textColor="#4FACFE"
-            android:textSize="12sp"
-            android:fontFamily="monospace" />
-    </ScrollView>
-
-</LinearLayout>
+            android:textSize="12sp" />
+    </LinearLayout>
+</ScrollView>

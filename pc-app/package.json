@@ -1,17 +1,53 @@
 {
   "name": "kzbs-phonelink",
-  "version": "1.0.0",
-  "description": "KZBS PhoneLink v1.0.0 - Native Windows Desktop Suite",
+  "version": "1.0.5",
+  "author": "KZBS",
+  "description": "KZBS PhoneLink v1.0.5 - Windows and Android phone bridge",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dist": "powershell -NoProfile -ExecutionPolicy Bypass -File ./bundle_app.ps1"
   },
   "dependencies": {
-    "cors": "^2.8.5",
     "express": "^4.19.2",
+    "qrcode": "^1.5.4",
     "ws": "^8.17.0"
   },
   "devDependencies": {
-    "electron": "^40.8.0"
+    "electron": "45.1.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.kzbs.phonelink",
+    "productName": "KZBS PhoneLink",
+    "electronLanguages": [
+      "en-US",
+      "tr"
+    ],
+    "compression": "maximum",
+    "directories": {
+      "output": "../dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "server.js",
+      "package.json",
+      "public/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "KZBS-PhoneLink-Setup-v${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "KZBS PhoneLink"
+    }
   }
 }

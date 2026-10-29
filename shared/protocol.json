@@ -1,28 +1,51 @@
 {
-  "version": "1.0.0",
+  "version": "1.0.5",
   "app_name": "KZBS PhoneLink",
-  "commands": {
-    "DEVICE_DISCOVERY": "KZBS_DISCOVERY_PING",
-    "DEVICE_HELLO": "DEVICE_HELLO",
-    "DIAL_CALL": "DIAL_CALL",
-    "END_CALL": "END_CALL",
-    "ANSWER_CALL": "ANSWER_CALL",
-    "SEND_SMS": "SEND_SMS",
-    "SEND_DTMF": "SEND_DTMF",
-    "MUTE_CALL": "MUTE_CALL",
-    "SPEAKER_TOGGLE": "SPEAKER_TOGGLE",
-    "REQ_SYNC_ALL": "REQ_SYNC_ALL",
-    "REQ_CONTACTS": "REQ_CONTACTS",
-    "REQ_CALL_LOGS": "REQ_CALL_LOGS",
-    "REQ_SMS_THREADS": "REQ_SMS_THREADS"
+  "discovery": {
+    "transport": "UDP broadcast",
+    "ping": "KZBS_DISCOVERY_PING",
+    "port": 4956
   },
-  "events": {
-    "CALL_STATE_CHANGED": "CALL_STATE_CHANGED",
-    "SMS_RECEIVED": "SMS_RECEIVED",
-    "SMS_SENT_STATUS": "SMS_SENT_STATUS",
-    "BATTERY_UPDATED": "BATTERY_UPDATED",
-    "CONTACTS_SYNCED": "CONTACTS_SYNCED",
-    "CALL_LOGS_SYNCED": "CALL_LOGS_SYNCED",
-    "SMS_THREADS_SYNCED": "SMS_THREADS_SYNCED"
-  }
+  "connection": {
+    "transport": "WebSocket",
+    "port": 4955,
+    "phone_path": "/phone?code=<first-pairing-code>|token=<saved-device-token>",
+    "pairing": "first connection uses a time-limited code or QR, then the phone stores a persistent device token",
+    "desktop_path": "/client"
+  },
+  "commands": [
+    "DIAL_CALL",
+    "ADD_CALL",
+    "END_CALL",
+    "DTMF_TONE",
+    "CALL_MUTE",
+    "CALL_ROUTE",
+    "CALL_HOLD",
+    "CALL_UNHOLD",
+    "SEND_SMS",
+    "REQ_SYNC_ALL"
+  ],
+  "phone_events": [
+    "DEVICE_HELLO",
+    "PHONE_ACTION_RESULT",
+    "SMS_RECEIVED",
+    "SMS_SEND_RESULT",
+    "SMS_SYNCED",
+    "CALL_STATE_CHANGED",
+    "CONTACTS_SYNCED",
+    "CALL_LOGS_SYNCED"
+  ],
+  "desktop_events": [
+    "INIT_STATE",
+    "PAIRING_COMPLETE",
+    "PHONE_CONNECTION_CHANGED",
+    "DEVICE_STATUS_UPDATED",
+    "ACTIVE_CALL_CHANGED",
+    "CALL_DURATION_TICK",
+    "NEW_SMS",
+    "MESSAGES_UPDATED",
+    "CONTACTS_UPDATED",
+    "CALL_LOGS_UPDATED",
+    "APP_ERROR"
+  ]
 }

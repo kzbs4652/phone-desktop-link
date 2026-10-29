@@ -1,13 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.kzbs.phonelink"
-    android:versionCode="1"
-    android:versionName="1.0.0">
-
-    <uses-sdk
-        android:minSdkVersion="24"
-        android:targetSdkVersion="34" />
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- SMS Permissions -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
@@ -19,25 +12,28 @@
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <!-- Contacts Permission -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
-    <!-- Network & Zero-Touch Discovery Permissions -->
+    <!-- Local Wi-Fi discovery and connection -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 
     <!-- Persistent Background Operation -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
         android:label="KZBS PhoneLink"
         android:roundIcon="@drawable/ic_launcher"
@@ -56,6 +52,27 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".DialerActivity"
+            android:exported="true"
+            android:label="PhoneLink Telefon">
+            <intent-filter>
+                <action android:name="android.intent.action.DIAL" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.DIAL" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="tel" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".InCallActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+
         <!-- Persistent Foreground Bridge Service -->
         <service
             android:name=".service.PhoneLinkService"
@@ -63,7 +80,18 @@
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
 
-        <!-- Auto-Start On Boot Receiver -->
+        <service
+            android:name=".service.PhoneInCallService"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.BIND_INCALL_SERVICE">
+            <meta-data android:name="android.telecom.IN_CALL_SERVICE_UI" android:value="true" />
+            <meta-data android:name="android.telecom.IN_CALL_SERVICE_RINGING" android:value="true" />
+            <intent-filter>
+                <action android:name="android.telecom.InCallService" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name=".service.BootReceiver"
             android:enabled="true"

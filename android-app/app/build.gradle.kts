@@ -3,6 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val releaseManifest = groovy.json.JsonSlurper().parse(rootProject.file("../version.json")) as Map<*, *>
+val appVersion = releaseManifest["version"] as String
+val appVersionCode = (releaseManifest["versionCode"] as Number).toInt()
+
 android {
     namespace = "com.kzbs.phonelink"
     compileSdk = 34
@@ -11,15 +15,25 @@ android {
         applicationId = "com.kzbs.phonelink"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        create("phoneLinkRelease") {
+            storeFile = rootProject.file("build_temp/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("phoneLinkRelease")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -38,6 +52,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 
@@ -54,4 +69,5 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 }

@@ -1,98 +1,25 @@
-# 📱💻 KZBS PhoneLink v1.0.0
-### Telefon & Bilgisayar Akıllı Köprü ve Yönetim Sistemi
+# KZBS PhoneLink v1.0.5
 
-![KZBS PhoneLink Logo](pc-app/public/assets/logo.svg)
+Android telefon ile Windows bilgisayar arasında yerel Wi-Fi üzerinden bağlantı kurar. Telefon eşleştirme kodunu doğruladıktan sonra izin verilen SMS'leri, kişileri ve arama geçmişini bilgisayara aktarır. Bilgisayardan telefon hattıyla arama başlatabilir ve SMS gönderebilirsiniz.
 
-**KZBS PhoneLink**, Android telefonunuz ile Windows bilgisayarınız arasında tam teşekküllü, kesintisiz ve sıfır zahmetli bir bağlantı kuran yeni nesil bir masaüstü ve mobil yönetim paketidir.
+## İlk bağlantı
 
----
+1. Bilgisayara PhoneLink kurulumunu yapıp uygulamayı açın.
+2. APK'yı Android telefona kurup PhoneLink'i açın; ilk kullanımda telefon ve SMS izinlerini verin.
+3. Telefon ve bilgisayarı aynı Wi-Fi ağına bağlayın. Telefonda **QR Koduyla Eşleştir** seçeneğini kullanıp bilgisayardaki QR kodunu okutun. Kamera kullanılamazsa bilgisayardaki 6 haneli kodu girip **Bilgisayarları Bul** seçeneğini kullanın.
+4. İlk eşleşme kaydedilir. Sonraki açılışlarda telefon aynı Wi-Fi ağına geldiğinde bilgisayara otomatik bağlanır; Android'de bağlantı bildiriminin açık kalması normaldir.
 
-## ✨ Öne Çıkan Özellikler
+Windows güvenlik duvarı yerel ağ bağlantısını sorarsa PhoneLink'e **Özel ağlarda** izin verin.
 
-### 1. 💬 Mesajlar (SMS) & Anında 2FA Doğrulama Kodları
-* Telefondaki tüm SMS konuşmalarını PC ekranında görüntüleyin.
-* **Akıllı 2FA / Banka Kodu Algılama:** Banka veya sitelerden gelen SMS onay kodları otomatik algılanır ve **"Kodu Kopyala 📋"** butonu sunulur. Telefona dokunmadan tek tıkla kopyalayıp tarayıcınıza yapıştırabilirsiniz.
-* Bilgisayar klavyesinden doğrudan SMS yazıp gönderebilme.
+Telefon bağlı değilken bilgisayar arayüzü örnek telefon bilgisi göstermez. Bilgisayardan başlatılan arama telefondaki SIM hattını kullanır. Bilgisayardan aramayı tuşlama, sessize alma, bekletme ve sonlandırma kontrolleri için Android uygulamasındaki **Bilgisayardan Arama Denetimini Aç** düğmesine basıp PhoneLink'i varsayılan telefon uygulaması olarak onaylayın. Görüşme sesini bilgisayara taşımak için arama ekranında **PC sesi (BT)** seçin; bunun görünmesi telefonun bilgisayarı Bluetooth arama ses aygıtı olarak tanımasına ve Windows'un eller serbest arama bağlantısını desteklemesine bağlıdır. Wi-Fi bağlantısı tek başına hücresel arama sesini taşımaz.
 
-### 2. 📞 Telefon, Tuş Takımı & Arama Yönetimi
-* **Apple / iOS Liquid Glass Tuş Takımı:** Gerçekçi DTMF çift tonlu ses efektleri (Web Audio API) ve yuvarlak cam butonlar.
-* **PC'den Arama Başlatma:** Numarayı yazıp *"Ara"* dediğinizde telefonunuz arka planda aramayı başlatır.
-* **Bluetooth Hands-Free Ses:** Bilgisayar mikrofonunuzdan konuşup, bilgisayar hoparlöründen / kulaklığınızdan dinleyin.
+## Paket oluşturma
 
-### 3. 📱 Özel Arama Ekranı (In-Call HUD)
-Görüşme başladığında bilgisayarınızda açılan özel panel:
-* Canlı konuşma süresi sayacı (`00:01, 00:02...`)
-* 🔴 **Aramayı Sonlandır**
-* ➕ **Arama Ekle (Konferans)**
-* 🔢 **Görüşme İçi Tuşlama** (Müşteri hizmetlerinde 1'e, 2'ye basabilmek için)
-* 🎙️ **Sessize Al (Mute) & Hoparlör Kontrolleri**
+- Windows kurucusu: `pc-app/bundle_app.ps1` (`dist/KZBS-PhoneLink-Setup-v1.0.5.exe`)
+- Android APK: `android-app/build_apk.ps1` (`dist/KZBS-PhoneLink-v1.0.5.apk`)
 
-### 4. 👥 Kişiler (Rehber) & Son Aramalar (Geçmiş)
-* Telefondaki tüm rehberi arama ve filtreleme imkanı.
-* Kişinin yanındaki butonla tek tıkla doğrudan **"Ara"** veya **"SMS Gönder"**.
-* Gelen, giden ve cevapsız aramaları süreleriyle listeleyen geçmiş sekmesi.
+Android güncellemelerinin mevcut kurulumun üzerine yüklenebilmesi için `android-app/build_temp/debug.keystore` dosyasını koruyun.
 
-### 5. ⚡ Zero-Touch (Sıfır Zahmet) Otomatik Bağlantı
-* Her gün QR kod okutmak veya bağlan butonuna basmak yok!
-* Yerel ağdaki UDP Broadcast keşfi sayesinde, bilgisayar uygulamasını açtığınız an cepteki veya şarjdaki telefonla **1 saniye içinde kendiliğinden eşleşir**.
+## Güncelleme bildirimi
 
----
-
-## 🎨 Tasarım: iOS Liquid Glass
-* Yarı saydam buzlu cam paneller (`backdrop-filter: blur(35px) saturate(190%)`)
-* Ekranın altında akıcı yana kayma animasyonuna sahip **Yüzen Cam Dock (Floating Dock Pill)**
-* Dinamik neon ortam ışıkları (Ambient Liquid Glow)
-
----
-
-## 🚀 Kurulum ve Başlatma
-
-### Bilgisayar (PC) Kurulumu:
-1. `pc-app/setup/install.bat` dosyasına çift tıklayın.
-2. Kurulum sihirbazı gerekli paketleri kontrol edecek ve masaüstünüze **"KZBS PhoneLink"** kısayolunu oluşturacaktır.
-3. Masaüstündeki simgeye çift tıklayarak uygulamayı başlatabilirsiniz.
-4. Doğrudan tarayıcıdan açmak isterseniz: `http://localhost:4955`
-
-### Android Telefon Kurulumu:
-1. `android-app` klasöründeki projeyi Android Studio ile açıp telefonunuza yükleyin (veya derlenen APK dosyasını kurun).
-2. Uygulamayı ilk açışta istenen standart izinleri (SMS, Arama, Rehber) onaylayın.
-3. Uygulama arka planda bir servis olarak sessizce çalışacak ve telefonunuz açıldığında otomatik olarak devreye girecektir.
-
----
-
-## 📁 Proje Dizin Yapısı
-
-```
-phone-desktop-link/
-├── pc-app/                      # Bilgisayar Uygulaması
-│   ├── server.js                # Express & WebSocket Sunucusu + UDP Discovery
-│   ├── package.json             # Bağımlılıklar
-│   ├── start.bat                # Hızlı Başlatıcı
-│   ├── setup/
-│   │   └── install.bat          # Windows Masaüstü Kısayol Kurucusu
-│   └── public/
-│       ├── index.html           # Liquid Glass Master Arayüzü
-│       ├── css/style.css        # iOS Cam Tasarım & Animasyonlar
-│       ├── js/app.js            # Arayüz Kontrolörü & İletişim
-│       ├── js/audio.js          # Web Audio DTMF Telefon Ses Sentezleyici
-│       └── assets/logo.svg      # Vektörel KZBS PhoneLink Logosu
-│
-├── android-app/                 # Android Mobil Uygulaması (Kotlin)
-│   ├── app/src/main/
-│   │   ├── AndroidManifest.xml  # Sistem İzinleri & Servis Tanımları
-│   │   └── java/com/kzbs/phonelink/
-│   │       ├── MainActivity.kt  # Yönetim ve Durum Ekranı
-│   │       ├── service/         # Kesintisiz Arka Plan Servisi & Boot Başlatıcı
-│   │       ├── receiver/        # SMS & Arama Dinleyicileri
-│   │       └── manager/         # Rehber, Arama & SMS İşleyicileri
-│
-└── shared/
-    └── protocol.json            # Ortak WebSocket Mesajlaşma Protokolü
-```
-
----
-
-## 🛡️ Lisans ve Geliştirici
-* **Uygulama:** KZBS PhoneLink
-* **Sürüm:** 1.0.0
-* **Geliştirici:** KZBS
+Windows ve Android aynı `version.json` sürüm numarasını kullanır. Yeni sürüm GitHub Release olarak yayımlandıktan ve güncel `version.json` `main` dalına gönderildikten sonra uygulamalar **Şimdi indir / Daha sonra** bildirimi gösterir. İndirme uygulama içinden yapılır; Windows kurulumunu veya Android APK kurulumunu kullanıcı başlatır.

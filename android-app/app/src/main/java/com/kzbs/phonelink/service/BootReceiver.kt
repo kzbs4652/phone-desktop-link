@@ -9,7 +9,9 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED || 
             intent.action == "android.intent.action.QUICKBOOT_POWERON") {
-            val serviceIntent = Intent(context, PhoneLinkService::class.java)
+            val prefs = context.getSharedPreferences(PhoneLinkService.PAIRING_PREFS, Context.MODE_PRIVATE)
+            if (prefs.getString(PhoneLinkService.PREF_TOKEN, null).isNullOrBlank()) return
+            val serviceIntent = Intent(context, PhoneLinkService::class.java).setAction(PhoneLinkService.ACTION_AUTO_CONNECT)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(serviceIntent)
             } else {

@@ -1,6 +1,10 @@
 <resources>
-    <style name="Theme.KZBSPhoneLink" parent="@android:style/Theme.DeviceDefault.NoActionBar">
-        <item name="android:colorPrimary">@color/cyan</item>
+    <style name="Theme.KZBSPhoneLink" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/cyan</item>
+        <item name="colorPrimaryVariant">@color/cyan</item>
+        <item name="colorSecondary">@color/cyan</item>
+        <item name="android:colorAccent">@color/cyan</item>
         <item name="android:windowBackground">@color/dark_bg</item>
+        <item name="android:navigationBarColor">@color/dark_bg</item>
     </style>
 </resources>

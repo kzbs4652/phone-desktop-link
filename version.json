@@ -1,16 +1,16 @@
 {
-  "version": "1.0.0",
-  "versionCode": 1,
+  "version": "1.0.5",
+  "versionCode": 6,
   "releaseDate": "2026-10-29",
-  "title": "KZBS PhoneLink v1.0.0",
-  "notes": "İlk resmi sürüm. Liquid Glass arayüz, SMS doğrulama ve çağrı yönetimi.",
+  "title": "KZBS PhoneLink v1.0.5",
+  "notes": "Tam SMS geçmişi eşitlenir. Arama ekranına DTMF tuş takımı, sessize alma, arama ekleme, bekletme ve aramayı bitirme kontrolleri eklendi. Bluetooth arama sesi, telefon ve bilgisayar Bluetooth eller serbest eşleşmesi destekliyorsa seçilebilir.",
   "pc": {
-    "version": "1.0.0",
-    "url": "https://github.com/kzbs4652/phone-desktop-link/raw/main/dist/KZBS-PhoneLink-Setup-v1.0.0.exe"
+    "version": "1.0.5",
+    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.5/KZBS-PhoneLink-Setup-v1.0.5.exe"
   },
   "android": {
-    "version": "1.0.0",
-    "versionCode": 1,
-    "url": "https://github.com/kzbs4652/phone-desktop-link/raw/main/dist/KZBS-PhoneLink-v1.0.0.apk"
+    "version": "1.0.5",
+    "versionCode": 6,
+    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.5/KZBS-PhoneLink-v1.0.5.apk"
   }
 }
