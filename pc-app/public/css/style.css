@@ -105,6 +105,11 @@ body {
   align-items: center;
   border-bottom: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.02);
+  -webkit-app-region: drag;
+}
+
+.brand-section, .header-status-pill, button, input {
+  -webkit-app-region: no-drag;
 }
 
 .brand-section {

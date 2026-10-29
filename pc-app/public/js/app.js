@@ -474,4 +474,14 @@ document.addEventListener('DOMContentLoaded', () => {
       name: 'Ahmet Yılmaz (Gelen Arama)'
     });
   });
+
+  // --- Native Windows Window Controls (Electron) ---
+  try {
+    if (window.require) {
+      const { ipcRenderer } = window.require('electron');
+      document.getElementById('winMinBtn')?.addEventListener('click', () => ipcRenderer.send('window-min'));
+      document.getElementById('winMaxBtn')?.addEventListener('click', () => ipcRenderer.send('window-max'));
+      document.getElementById('winCloseBtn')?.addEventListener('click', () => ipcRenderer.send('window-close'));
+    }
+  } catch(e) {}
 });
