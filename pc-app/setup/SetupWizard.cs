@@ -13,31 +13,46 @@ public class SetupWizardForm : Form {
     private CheckBox chkLaunch;
     private Timer timer;
     private int progress = 0;
-    private string targetAppPath;
+    private string targetExePath;
+    private string targetWorkingDir;
 
     public SetupWizardForm() {
         this.Text = "KZBS PhoneLink v1.0.0 Kurulum Sihirbazi";
-        this.Width = 580;
-        this.Height = 440;
+        this.Width = 600;
+        this.Height = 460;
         this.StartPosition = FormStartPosition.CenterScreen;
         this.FormBorderStyle = FormBorderStyle.FixedDialog;
         this.MaximizeBox = false;
         this.BackColor = Color.FromArgb(10, 15, 29);
         this.ForeColor = Color.White;
 
-        string scriptDir = AppDomain.CurrentDomain.BaseDirectory;
-        // Search for pc-app\KZBS-PhoneLink.exe
-        string p1 = Path.Combine(scriptDir, "pc-app", "KZBS-PhoneLink.exe");
-        string p2 = Path.Combine(scriptDir, "..", "pc-app", "KZBS-PhoneLink.exe");
-        string p3 = Path.Combine(scriptDir, "KZBS-PhoneLink.exe");
-        if (File.Exists(p1)) targetAppPath = Path.GetFullPath(p1);
-        else if (File.Exists(p2)) targetAppPath = Path.GetFullPath(p2);
-        else targetAppPath = Path.GetFullPath(p3);
+        string baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\', '/');
+        
+        // Find pc-app\KZBS-PhoneLink.exe
+        string[] candidates = new string[] {
+            Path.Combine(baseDir, "pc-app", "KZBS-PhoneLink.exe"),
+            Path.Combine(baseDir, "..", "pc-app", "KZBS-PhoneLink.exe"),
+            Path.Combine(baseDir, "KZBS-PhoneLink.exe"),
+            @"C:\Users\Acer\OneDrive\Masaüstü\PhoneLink\pc-app\KZBS-PhoneLink.exe"
+        };
+
+        foreach (string c in candidates) {
+            if (File.Exists(c)) {
+                targetExePath = Path.GetFullPath(c);
+                targetWorkingDir = Path.GetDirectoryName(targetExePath);
+                break;
+            }
+        }
+
+        if (string.IsNullOrEmpty(targetExePath)) {
+            targetExePath = Path.Combine(baseDir, "pc-app", "KZBS-PhoneLink.exe");
+            targetWorkingDir = Path.Combine(baseDir, "pc-app");
+        }
 
         // Header Banner Panel
         Panel header = new Panel {
             Dock = DockStyle.Top,
-            Height = 90,
+            Height = 96,
             BackColor = Color.FromArgb(18, 26, 43)
         };
         this.Controls.Add(header);
@@ -55,25 +70,25 @@ public class SetupWizardForm : Form {
             Text = "Telefon & Bilgisayar Akilli Yonetim Paketi Kurulumu",
             Font = new Font("Segoe UI", 10),
             ForeColor = Color.FromArgb(142, 142, 147),
-            Location = new Point(26, 52),
+            Location = new Point(26, 54),
             AutoSize = true
         };
         header.Controls.Add(lblSub);
 
         // Content Area
         Label lblInfo = new Label {
-            Text = "Bu kurulum sihirbazi KZBS PhoneLink uygulamasini bilgisayariniza entegre edecek,\nmasaustunuze kisayol ekleyecek ve bagimsiz masaustu uygulamasini hazirlayacaktir.\n\nDevam etmek icin lutfen 'Kuruluma Basla' butonuna tiklayiniz.",
-            Font = new Font("Segoe UI", 10),
+            Text = "Bu kurulum sihirbazi KZBS PhoneLink masaustu uygulamasini yapilandiracak,\nmasaustunuze ve baslat menusune bagimsiz masaustu kisayolunu ekleyecektir.\n\nUygulama konumu: " + targetWorkingDir,
+            Font = new Font("Segoe UI", 9),
             Location = new Point(30, 120),
-            Size = new Size(500, 70),
+            Size = new Size(520, 60),
             ForeColor = Color.FromArgb(235, 235, 245)
         };
         this.Controls.Add(lblInfo);
 
         lblStatus = new Label {
-            Text = "Kuruluma hazir.",
+            Text = "Kuruluma hazir. 'Kuruluma Basla' butonuna tiklayiniz.",
             Font = new Font("Segoe UI", 9, FontStyle.Italic),
-            Location = new Point(30, 215),
+            Location = new Point(30, 210),
             AutoSize = true,
             ForeColor = Color.FromArgb(0, 242, 254)
         };
@@ -81,7 +96,7 @@ public class SetupWizardForm : Form {
 
         progressBar = new ProgressBar {
             Location = new Point(30, 240),
-            Size = new Size(500, 24),
+            Size = new Size(520, 24),
             Value = 0,
             Maximum = 100
         };
@@ -89,7 +104,7 @@ public class SetupWizardForm : Form {
 
         chkLaunch = new CheckBox {
             Text = "Kurulum tamamlandiginda KZBS PhoneLink uygulamasini baslat",
-            Location = new Point(30, 280),
+            Location = new Point(30, 285),
             AutoSize = true,
             Checked = true,
             Font = new Font("Segoe UI", 9),
@@ -99,7 +114,7 @@ public class SetupWizardForm : Form {
 
         btnAction = new Button {
             Text = "Kuruluma Basla",
-            Location = new Point(380, 335),
+            Location = new Point(400, 345),
             Size = new Size(150, 42),
             BackColor = Color.FromArgb(0, 242, 254),
             ForeColor = Color.FromArgb(7, 11, 20),
@@ -112,7 +127,7 @@ public class SetupWizardForm : Form {
         this.Controls.Add(btnAction);
 
         timer = new Timer();
-        timer.Interval = 40;
+        timer.Interval = 35;
         timer.Tick += Timer_Tick;
     }
 
@@ -121,30 +136,32 @@ public class SetupWizardForm : Form {
             btnAction.Enabled = false;
             timer.Start();
         } else if (btnAction.Text == "Bitir ve Baslat" || btnAction.Text == "Kapat") {
-            if (chkLaunch.Checked && File.Exists(targetAppPath)) {
-                Process.Start(new ProcessStartInfo {
-                    FileName = targetAppPath,
-                    WorkingDirectory = Path.GetDirectoryName(targetAppPath)
-                });
+            if (chkLaunch.Checked && File.Exists(targetExePath)) {
+                ProcessStartInfo psi = new ProcessStartInfo {
+                    FileName = targetExePath,
+                    WorkingDirectory = targetWorkingDir,
+                    Arguments = ""
+                };
+                Process.Start(psi);
             }
             this.Close();
         }
     }
 
     private void Timer_Tick(object sender, EventArgs e) {
-        progress += 3;
-        if (progress <= 30) {
-            lblStatus.Text = "Sistem bilesenleri kontrol ediliyor...";
-        } else if (progress <= 70) {
-            lblStatus.Text = "Masaustu bagimsiz uygulama motoru hazirlaniyor...";
+        progress += 4;
+        if (progress <= 35) {
+            lblStatus.Text = "Sistem bilesenleri ve paketler dogrulaniyor...";
+        } else if (progress <= 75) {
+            lblStatus.Text = "Bagimsiz masaustu calistiricisi yapilandiriliyor...";
         } else if (progress <= 95) {
-            lblStatus.Text = "Masaustu kisayolu olusturuluyor...";
+            lblStatus.Text = "Masaustu ve Baslat Menusu kisayollari olusturuluyor...";
         }
 
         if (progress >= 100) {
             timer.Stop();
             progressBar.Value = 100;
-            CreateDesktopShortcut();
+            CreateShortcuts();
             lblStatus.Text = "Tebrikler! KZBS PhoneLink basariyla kuruldu.";
             lblStatus.ForeColor = Color.FromArgb(48, 209, 88);
             btnAction.Text = chkLaunch.Checked ? "Bitir ve Baslat" : "Kapat";
@@ -155,20 +172,29 @@ public class SetupWizardForm : Form {
         }
     }
 
-    private void CreateDesktopShortcut() {
+    private void CreateShortcuts() {
         try {
             string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-            string shortcutPath = Path.Combine(desktopDir, "KZBS PhoneLink.lnk");
+            string desktopShortcut = Path.Combine(desktopDir, "KZBS PhoneLink.lnk");
 
             Type shellType = Type.GetTypeFromProgID("WScript.Shell");
             dynamic shell = Activator.CreateInstance(shellType);
-            dynamic shortcut = shell.CreateShortcut(shortcutPath);
-            shortcut.TargetPath = targetAppPath;
-            shortcut.WorkingDirectory = Path.GetDirectoryName(targetAppPath);
+            dynamic shortcut = shell.CreateShortcut(desktopShortcut);
+            shortcut.TargetPath = targetExePath;
+            shortcut.WorkingDirectory = targetWorkingDir;
             shortcut.Description = "KZBS PhoneLink v1.0.0 Telefon & Bilgisayar Yonetim Sistemi";
             shortcut.Save();
+
+            // Start menu shortcut
+            string startMenuDir = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+            string startMenuShortcut = Path.Combine(startMenuDir, "KZBS PhoneLink.lnk");
+            dynamic startShortcut = shell.CreateShortcut(startMenuShortcut);
+            startShortcut.TargetPath = targetExePath;
+            startShortcut.WorkingDirectory = targetWorkingDir;
+            startShortcut.Description = "KZBS PhoneLink v1.0.0";
+            startShortcut.Save();
         } catch {
-            // Ignore if COM shortcut fails
+            // Ignore COM errors
         }
     }
 

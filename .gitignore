@@ -7,3 +7,4 @@ build/
 local.properties
 dist/*.idsig
 android-app/build_temp/
+pc-app/package_dist/

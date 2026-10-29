@@ -372,6 +372,35 @@ app.get('/api/state', (req, res) => {
   res.json({ deviceState, activeCall, contacts, callLogs, messages });
 });
 
+app.get('/api/check-update', (req, res) => {
+  const https = require('https');
+  const url = 'https://raw.githubusercontent.com/kzbs4652/phone-desktop-link/main/version.json';
+  https.get(url, (resp) => {
+    let data = '';
+    resp.on('data', chunk => data += chunk);
+    resp.on('end', () => {
+      try {
+        const json = JSON.parse(data);
+        const currentVersion = "1.0.0";
+        const hasUpdate = json.version !== currentVersion;
+        res.json({
+          hasUpdate,
+          currentVersion,
+          latestVersion: json.version,
+          title: json.title,
+          notes: json.notes,
+          pcDownloadUrl: json.pc ? json.pc.url : null,
+          apkDownloadUrl: json.android ? json.android.url : null
+        });
+      } catch(e) {
+        res.status(500).json({ error: "Parse error" });
+      }
+    });
+  }).on('error', err => {
+    res.status(500).json({ error: err.message });
+  });
+});
+
 app.post('/api/simulate/sms', (req, res) => {
   simulateIncomingSms(req.body.sender, req.body.text);
   res.json({ success: true });

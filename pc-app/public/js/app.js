@@ -475,6 +475,50 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // --- Auto-Update Check ---
+  let latestPcSetupUrl = "https://github.com/kzbs4652/phone-desktop-link/raw/main/dist/KZBS-PhoneLink-Setup-v1.0.0.exe";
+  const pcUpdatePill = document.getElementById('pcUpdatePill');
+  const pcUpdateVer = document.getElementById('pcUpdateVer');
+  const pcBtnDownloadUpdate = document.getElementById('pcBtnDownloadUpdate');
+  const btnCheckUpdateManual = document.getElementById('btnCheckUpdateManual');
+  const pcUpdateStatusMsg = document.getElementById('pcUpdateStatusMsg');
+
+  function checkAppUpdate(manual = false) {
+    if (pcUpdateStatusMsg && manual) pcUpdateStatusMsg.textContent = 'Güncellemeler denetleniyor...';
+    fetch('/api/check-update')
+      .then(res => res.json())
+      .then(data => {
+        if (data.hasUpdate) {
+          if (pcUpdatePill) {
+            pcUpdatePill.style.display = 'flex';
+            if (pcUpdateVer) pcUpdateVer.textContent = 'v' + data.latestVersion;
+          }
+          if (data.pcDownloadUrl) latestPcSetupUrl = data.pcDownloadUrl;
+          if (pcUpdateStatusMsg) {
+            pcUpdateStatusMsg.innerHTML = `<span style="color: #00f2fe;">🚀 Yeni sürüm mevcut: v${data.latestVersion}</span>`;
+          }
+          showToast(`🚀 Yeni Güncelleme Yayında: v${data.latestVersion}`);
+        } else {
+          if (pcUpdatePill) pcUpdatePill.style.display = 'none';
+          if (pcUpdateStatusMsg) {
+            pcUpdateStatusMsg.innerHTML = `<span style="color: #30d158;">✅ Yazılımınız güncel (v1.0.0)</span>`;
+          }
+          if (manual) showToast('✅ KZBS PhoneLink en güncel sürümde!');
+        }
+      })
+      .catch(err => {
+        if (pcUpdateStatusMsg && manual) pcUpdateStatusMsg.textContent = 'Güncelleme denetlenemedi.';
+      });
+  }
+
+  btnCheckUpdateManual?.addEventListener('click', () => checkAppUpdate(true));
+  pcBtnDownloadUpdate?.addEventListener('click', () => {
+    window.open(latestPcSetupUrl, '_blank');
+  });
+
+  checkAppUpdate(false);
+  setInterval(() => checkAppUpdate(false), 10 * 60 * 1000);
+
   // --- Native Windows Window Controls (Electron) ---
   try {
     if (window.require) {

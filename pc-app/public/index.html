@@ -26,6 +26,11 @@
       </div>
 
       <div style="display: flex; align-items: center; gap: 14px;">
+        <!-- Live Update Notification Badge -->
+        <div id="pcUpdatePill" style="display: none; align-items: center; gap: 8px; background: rgba(0, 242, 254, 0.2); border: 1px solid var(--neon-cyan); padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: bold; color: #fff; cursor: pointer;">
+          <span>🚀 Yeni Güncelleme: <span id="pcUpdateVer"></span></span>
+          <button id="pcBtnDownloadUpdate" style="background: var(--neon-cyan); border: none; color: #070b14; padding: 2px 10px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 11px;">İndir</button>
+        </div>
         <!-- Test Simulator Shortcuts -->
         <button id="testSmsBtn" style="background: rgba(0, 242, 254, 0.15); border: 1px solid rgba(0, 242, 254, 0.3); color: var(--neon-cyan); padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer;">
           ⚡ Test SMS Geldi
@@ -188,6 +193,16 @@
               <div>✅ Kişileri & Arama Geçmişini Eşitleme</div>
               <div>✅ Arama Başlatma & Sonlandırma İzni</div>
               <div>✅ Kesintisiz Arka Plan Servisi (Doze Mod Muafiyeti)</div>
+            </div>
+
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--glass-border);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-size: 14px; font-weight: 600;">Sürüm: v1.0.0</span>
+                <button id="btnCheckUpdateManual" style="background: rgba(0, 242, 254, 0.15); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                  🔄 Güncellemeleri Denetle
+                </button>
+              </div>
+              <div id="pcUpdateStatusMsg" style="font-size: 12px; color: var(--text-muted);">Sistem güncel.</div>
             </div>
           </div>
         </div>

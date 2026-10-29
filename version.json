@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "versionCode": 1,
+  "releaseDate": "2026-10-29",
+  "title": "KZBS PhoneLink v1.0.0",
+  "notes": "İlk resmi sürüm. Liquid Glass arayüz, SMS doğrulama ve çağrı yönetimi.",
+  "pc": {
+    "version": "1.0.0",
+    "url": "https://github.com/kzbs4652/phone-desktop-link/raw/main/dist/KZBS-PhoneLink-Setup-v1.0.0.exe"
+  },
+  "android": {
+    "version": "1.0.0",
+    "versionCode": 1,
+    "url": "https://github.com/kzbs4652/phone-desktop-link/raw/main/dist/KZBS-PhoneLink-v1.0.0.apk"
+  }
+}
