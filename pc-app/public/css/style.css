@@ -1,0 +1,939 @@
+:root {
+  --bg-primary: #070b14;
+  --glass-bg: rgba(18, 26, 43, 0.65);
+  --glass-dock: rgba(22, 33, 56, 0.72);
+  --glass-card: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border-glow: rgba(0, 242, 254, 0.35);
+  --neon-cyan: #00f2fe;
+  --neon-blue: #4facfe;
+  --neon-purple: #9d4edd;
+  --neon-pink: #ff007f;
+  --ios-green: #30d158;
+  --ios-red: #ff453a;
+  --ios-yellow: #ffd60a;
+  --text-main: #f5f5f7;
+  --text-muted: #8e8e93;
+  --text-dim: #636366;
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 10px;
+  --radius-pill: 9999px;
+  --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Dynamic Ambient Liquid Glow Orbs in Background */
+.ambient-glow {
+  position: absolute;
+  width: 550px;
+  height: 550px;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.22;
+  pointer-events: none;
+  z-index: 0;
+  animation: floatOrb 18s ease-in-out infinite alternate;
+}
+.orb-cyan {
+  top: -100px;
+  left: 10%;
+  background: radial-gradient(circle, var(--neon-cyan), transparent);
+}
+.orb-purple {
+  bottom: -100px;
+  right: 15%;
+  background: radial-gradient(circle, var(--neon-purple), transparent);
+  animation-duration: 22s;
+}
+.orb-pink {
+  top: 40%;
+  right: 25%;
+  background: radial-gradient(circle, var(--neon-pink), transparent);
+  opacity: 0.12;
+  animation-duration: 26s;
+}
+
+@keyframes floatOrb {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(60px, 40px) scale(1.12); }
+  100% { transform: translate(-40px, -30px) scale(0.95); }
+}
+
+/* Master App Container */
+.app-container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1100px;
+  height: 840px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(35px) saturate(190%);
+  -webkit-backdrop-filter: blur(35px) saturate(190%);
+  border: 1px solid var(--glass-border);
+  border-radius: 36px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.65), 0 0 40px rgba(0, 242, 254, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Top App Header (Brand, Version, Device Status Hub) */
+.app-header {
+  height: 72px;
+  padding: 0 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-logo {
+  width: 42px;
+  height: 42px;
+  filter: drop-shadow(0 4px 12px rgba(0, 242, 254, 0.35));
+}
+
+.brand-title {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: linear-gradient(135deg, #ffffff 40%, var(--neon-cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: rgba(0, 242, 254, 0.15);
+  color: var(--neon-cyan);
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+}
+
+.header-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border);
+  padding: 6px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ios-green);
+  box-shadow: 0 0 10px var(--ios-green);
+  animation: pulseDot 2s infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+}
+
+.battery-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+.battery-icon {
+  width: 22px;
+  height: 12px;
+  border: 1.5px solid #8e8e93;
+  border-radius: 3px;
+  padding: 1px;
+  position: relative;
+}
+.battery-icon::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: 2.5px;
+  width: 2px;
+  height: 4px;
+  background: #8e8e93;
+  border-radius: 0 1px 1px 0;
+}
+.battery-level-fill {
+  height: 100%;
+  width: 84%;
+  background: var(--ios-green);
+  border-radius: 1px;
+}
+
+/* App Main Content Viewport (Viewport Slider for iOS Transitions) */
+.main-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.view-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 24px 32px 100px 32px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(35px) scale(0.98);
+  transition: opacity 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  overflow-y: auto;
+}
+
+.view-slide.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0) scale(1);
+}
+
+.view-slide.slide-left {
+  transform: translateX(-35px) scale(0.98);
+}
+
+/* Scrollbar customization */
+.view-slide::-webkit-scrollbar {
+  width: 6px;
+}
+.view-slide::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+
+/* Section Header Titles */
+.section-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  letter-spacing: -0.5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* =========================================================
+   1. KEYPAD & DIALER (Tuş Takımı)
+========================================================= */
+.dialer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.phone-number-display {
+  width: 100%;
+  height: 64px;
+  font-size: 34px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-main);
+  background: transparent;
+  border: none;
+  outline: none;
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+  text-overflow: ellipsis;
+}
+
+.keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px 24px;
+  width: 100%;
+}
+
+.key-btn {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  margin: 0 auto;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.key-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(0, 242, 254, 0.4);
+  transform: translateY(-2px);
+}
+
+.key-btn:active {
+  transform: scale(0.92);
+  background: rgba(0, 242, 254, 0.25);
+  box-shadow: 0 0 25px rgba(0, 242, 254, 0.5);
+}
+
+.key-digit {
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.key-letters {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.call-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  margin-top: 24px;
+  width: 100%;
+}
+
+.call-btn-large {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #30d158, #248a3d);
+  border: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(48, 209, 88, 0.4);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.call-btn-large svg {
+  width: 34px;
+  height: 34px;
+  fill: #ffffff;
+}
+
+.call-btn-large:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 28px rgba(48, 209, 88, 0.6);
+}
+
+.call-btn-large:active {
+  transform: scale(0.92);
+}
+
+.backspace-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.backspace-btn:hover {
+  color: var(--text-main);
+}
+
+/* =========================================================
+   2. CONTACTS (Rehber)
+========================================================= */
+.search-bar-wrap {
+  position: relative;
+  margin-bottom: 20px;
+}
+.search-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 46px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-size: 15px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+.search-input:focus {
+  border-color: var(--neon-cyan);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+}
+.search-icon {
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  fill: var(--text-muted);
+}
+
+.contacts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.contact-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: var(--glass-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.contact-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(0, 242, 254, 0.3);
+  transform: translateX(4px);
+}
+
+.contact-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.contact-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(127, 0, 255, 0.3));
+  border: 1px solid var(--glass-border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 22px;
+}
+
+.contact-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.contact-phone {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.contact-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn-sm {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.07);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.action-btn-sm.call-action:hover {
+  background: var(--ios-green);
+  border-color: var(--ios-green);
+  box-shadow: 0 0 14px rgba(48, 209, 88, 0.4);
+}
+.action-btn-sm.sms-action:hover {
+  background: var(--neon-blue);
+  border-color: var(--neon-blue);
+  box-shadow: 0 0 14px rgba(79, 172, 254, 0.4);
+}
+
+/* =========================================================
+   3. RECENTS (Arama Geçmişi)
+========================================================= */
+.call-log-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--glass-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+  transition: all 0.2s ease;
+}
+.call-log-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.log-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.log-type-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 16px;
+}
+.type-incoming { background: rgba(79, 172, 254, 0.15); color: var(--neon-blue); }
+.type-outgoing { background: rgba(48, 209, 88, 0.15); color: var(--ios-green); }
+.type-missed { background: rgba(255, 69, 58, 0.15); color: var(--ios-red); }
+
+.log-meta {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* =========================================================
+   4. MESSAGES / SMS (Mesajlaşma)
+========================================================= */
+.messages-container {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 20px;
+  height: 580px;
+}
+
+.messages-list-pane {
+  background: var(--glass-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.thread-item {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+.thread-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.thread-item.active {
+  background: rgba(0, 242, 254, 0.12);
+  border-color: rgba(0, 242, 254, 0.3);
+}
+
+.thread-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.thread-sender {
+  font-weight: 600;
+  font-size: 15px;
+}
+.thread-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.thread-preview {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.messages-chat-pane {
+  background: var(--glass-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.chat-bubble-stream {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sms-bubble {
+  max-width: 75%;
+  padding: 12px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  line-height: 1.45;
+  position: relative;
+}
+.sms-bubble.incoming {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+  border-bottom-left-radius: 4px;
+}
+.sms-bubble.outgoing {
+  align-self: flex-end;
+  background: linear-gradient(135deg, #007aff, #00c6ff);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+/* 2FA Verification Code Highlight Box */
+.code-badge-box {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: rgba(0, 242, 254, 0.12);
+  border: 1px dashed var(--neon-cyan);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.code-value {
+  font-family: monospace;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--neon-cyan);
+}
+.copy-code-btn {
+  background: var(--neon-cyan);
+  color: #070b14;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.copy-code-btn:hover {
+  background: #ffffff;
+  box-shadow: 0 0 12px #ffffff;
+}
+
+.chat-input-bar {
+  padding: 14px 20px;
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.sms-text-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  padding: 12px 20px;
+  color: #fff;
+  outline: none;
+  font-size: 14px;
+}
+.send-sms-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--neon-blue);
+  border: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.send-sms-btn:hover {
+  transform: scale(1.08);
+}
+
+/* =========================================================
+   5. IN-CALL OVERLAY HUD (Özel Arama Arayüzü)
+========================================================= */
+.incall-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(7, 11, 20, 0.92);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 60px 40px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(100%);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.incall-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.incall-header {
+  text-align: center;
+}
+
+.incall-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+  margin: 0 auto 18px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 42px;
+  box-shadow: 0 10px 30px rgba(0, 242, 254, 0.3);
+}
+
+.incall-name {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.incall-status {
+  font-size: 16px;
+  color: var(--neon-cyan);
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+.incall-timer {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.incall-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px 36px;
+  max-width: 340px;
+  width: 100%;
+}
+
+.incall-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: #fff;
+}
+
+.incall-btn-circle {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+.incall-action-btn:hover .incall-btn-circle {
+  background: rgba(255, 255, 255, 0.22);
+}
+.incall-action-btn.active .incall-btn-circle {
+  background: #ffffff;
+  color: #000;
+}
+.incall-action-btn.active .incall-btn-circle svg {
+  fill: #000;
+}
+
+.incall-btn-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.end-call-btn {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--ios-red);
+  border: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 8px 30px rgba(255, 69, 58, 0.5);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.end-call-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 10px 36px rgba(255, 69, 58, 0.7);
+}
+.end-call-btn:active {
+  transform: scale(0.92);
+}
+
+/* =========================================================
+   6. FLOATING LIQUID GLASS BOTTOM DOCK (iOS Pill)
+========================================================= */
+.floating-dock-wrap {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.floating-glass-dock {
+  background: var(--glass-dock);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(0, 242, 254, 0.1);
+  position: relative;
+}
+
+/* Glowing sliding pill indicator */
+.dock-pill-indicator {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 10px;
+  width: 90px;
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.25), rgba(79, 172, 254, 0.15));
+  border: 1px solid rgba(0, 242, 254, 0.45);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.35);
+  transition: all 0.35s cubic-bezier(0.2, 0.9, 0.2, 1);
+  pointer-events: none;
+}
+
+.dock-item {
+  position: relative;
+  z-index: 2;
+  width: 90px;
+  height: 48px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dock-item.active {
+  color: #ffffff;
+}
+
+.dock-icon {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.2s ease;
+}
+
+.dock-item:hover .dock-icon {
+  transform: scale(1.15);
+}
+
+.dock-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+/* Toast notifications */
+.toast-notice {
+  position: fixed;
+  bottom: 90px;
+  right: 40px;
+  background: rgba(18, 26, 43, 0.9);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--neon-cyan);
+  padding: 14px 22px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+.toast-notice.show {
+  opacity: 1;
+  transform: translateY(0);
+}

@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0f1d" />
+      <stop offset="50%" stop-color="#0f1b33" />
+      <stop offset="100%" stop-color="#050811" />
+    </linearGradient>
+
+    <!-- Neon Glow Cyan-Blue Gradient -->
+    <linearGradient id="cyanBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" />
+      <stop offset="100%" stop-color="#4facfe" />
+    </linearGradient>
+
+    <!-- Neon Purple Violet Gradient -->
+    <linearGradient id="purplePink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff0844" />
+      <stop offset="100%" stop-color="#ffb199" />
+    </linearGradient>
+
+    <!-- Violet Cyan Gradient -->
+    <linearGradient id="violetCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7f00ff" />
+      <stop offset="100%" stop-color="#e100ff" />
+    </linearGradient>
+
+    <!-- Glass Reflection Gradient -->
+    <linearGradient id="glassGloss" x1="0%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.02" />
+    </linearGradient>
+
+    <filter id="glowEffect" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Rounded App Icon Background -->
+  <rect x="24" y="24" width="464" height="464" rx="104" fill="url(#bgGrad)" stroke="rgba(255,255,255,0.12)" stroke-width="2" />
+  
+  <!-- Subtle Internal Radial Ambient Glow -->
+  <circle cx="180" cy="180" r="140" fill="#00f2fe" opacity="0.12" filter="blur(40px)" />
+  <circle cx="340" cy="340" r="140" fill="#7f00ff" opacity="0.15" filter="blur(40px)" />
+
+  <!-- Glass Shield Outer Ring -->
+  <rect x="64" y="64" width="384" height="384" rx="72" fill="url(#glassGloss)" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" />
+
+  <!-- Desktop Monitor Outline (Left) -->
+  <g filter="url(#glowEffect)">
+    <!-- Monitor Body -->
+    <rect x="110" y="150" width="180" height="130" rx="16" fill="none" stroke="url(#cyanBlue)" stroke-width="10" />
+    <!-- Monitor Screen Inner Display -->
+    <rect x="124" y="164" width="152" height="102" rx="8" fill="#00f2fe" fill-opacity="0.08" />
+    <!-- Monitor Stand -->
+    <path d="M 200 280 L 200 320 M 165 320 L 235 320" stroke="url(#cyanBlue)" stroke-width="10" stroke-linecap="round" />
+  </g>
+
+  <!-- Phone Outline (Right, Overlapping Monitor with link wave) -->
+  <g filter="url(#glowEffect)">
+    <!-- Phone Body -->
+    <rect x="250" y="190" width="150" height="230" rx="28" fill="#0c1322" stroke="url(#violetCyan)" stroke-width="10" />
+    <!-- Phone Screen Fill -->
+    <rect x="264" y="210" width="122" height="175" rx="16" fill="#7f00ff" fill-opacity="0.12" />
+    <!-- Phone Speaker Notch -->
+    <rect x="305" y="198" width="40" height="4" rx="2" fill="#e100ff" />
+    <!-- Home Bar Indicator -->
+    <rect x="300" y="402" width="50" height="4" rx="2" fill="#ffffff" opacity="0.5" />
+  </g>
+
+  <!-- Dynamic Linking Wave / Signal Beams connecting PC & Phone -->
+  <g stroke-linecap="round" filter="url(#glowEffect)">
+    <!-- Signal Beam 1 -->
+    <path d="M 230 190 Q 255 160 280 180" fill="none" stroke="#00f2fe" stroke-width="6" opacity="0.9" />
+    <!-- Signal Beam 2 -->
+    <path d="M 220 215 Q 260 180 300 210" fill="none" stroke="#e100ff" stroke-width="6" opacity="0.9" />
+    <!-- Wireless Pulse Nodes -->
+    <circle cx="200" cy="215" r="7" fill="#00f2fe" />
+    <circle cx="325" cy="275" r="7" fill="#e100ff" />
+  </g>
+
+  <!-- KZBS Badge Text At Top -->
+  <text x="256" y="118" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800" fill="#ffffff" letter-spacing="4">KZBS PHONELINK</text>
+</svg>
