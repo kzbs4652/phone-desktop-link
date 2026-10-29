@@ -5,8 +5,7 @@ contextBridge.exposeInMainWorld('phoneLink', {
   toggleMaximize: () => ipcRenderer.send('window-max'),
   close: () => ipcRenderer.send('window-close'),
   openExternal: url => ipcRenderer.send('open-external', url),
-  downloadUpdate: url => ipcRenderer.invoke('download-update', url),
-  revealDownloadedFile: filePath => ipcRenderer.send('reveal-downloaded-file', filePath),
+  startUpdateInstall: () => ipcRenderer.invoke('start-update-install'),
   openPairingWindow: () => ipcRenderer.invoke('open-pairing-window'),
-  onDownloadProgress: callback => ipcRenderer.on('download-update-progress', (_event, progress) => callback(progress))
+  onUpdateInstallState: callback => ipcRenderer.on('update-install-state', (_event, state) => callback(state))
 });

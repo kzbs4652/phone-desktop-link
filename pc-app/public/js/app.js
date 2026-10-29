@@ -1,4 +1,4 @@
-// KZBS PhoneLink v1.0.5 Client Controller
+// KZBS PhoneLink v1.0.6 Client Controller
 document.addEventListener('DOMContentLoaded', () => {
   // --- State ---
   let currentTab = 'keypad';
@@ -584,17 +584,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --- Auto-Update Check ---
-  let latestPcSetupUrl = null;
+  let latestPcVersion = null;
   let lastNotifiedUpdateVersion = null;
   let deferredUpdateVersion = null;
-  let downloadedUpdatePath = null;
-  let updateDownloadUrl = null;
   const updateDialog = document.getElementById('updateDialog');
   const updateDialogVersion = document.getElementById('updateDialogVersion');
   const updateDialogNotes = document.getElementById('updateDialogNotes');
   const updateDownloadStatus = document.getElementById('updateDownloadStatus');
   const updateDownloadBtn = document.getElementById('updateDownloadBtn');
-  const updateRevealBtn = document.getElementById('updateRevealBtn');
   const pcUpdatePill = document.getElementById('pcUpdatePill');
   const pcUpdateVer = document.getElementById('pcUpdateVer');
   const pcBtnDownloadUpdate = document.getElementById('pcBtnDownloadUpdate');
@@ -606,16 +603,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (updateDialog) updateDialog.style.display = 'none';
   }
 
-  function showUpdateDialog(version, notes, url) {
-    updateDownloadUrl = url;
+  function showUpdateDialog(version, notes) {
     if (updateDialogVersion) {
       updateDialogVersion.textContent = `Yeni sürüm v${version}`;
       updateDialogVersion.dataset.version = version;
     }
-    if (updateDialogNotes) updateDialogNotes.textContent = notes || 'Güncellemeyi indirip kurulum dosyasını kendin çalıştırabilirsin.';
-    if (updateDownloadStatus) updateDownloadStatus.textContent = 'İndirme İndirilenler klasörüne kaydedilir. Kurulumu sen başlatırsın.';
+    if (updateDialogNotes) updateDialogNotes.textContent = notes || 'Yeni sürüm hazır. İndirme tamamlanınca PhoneLink kapanıp güncellenecek ve yeniden açılacak.';
+    if (updateDownloadStatus) updateDownloadStatus.textContent = 'İndirme tamamlandığında uygulama otomatik olarak güncellenip yeniden açılır.';
     if (updateDownloadBtn) { updateDownloadBtn.disabled = false; updateDownloadBtn.textContent = 'Şimdi indir'; }
-    if (updateRevealBtn) updateRevealBtn.style.display = downloadedUpdatePath ? 'block' : 'none';
     if (updateDialog) updateDialog.style.display = 'flex';
   }
 
@@ -630,14 +625,14 @@ document.addEventListener('DOMContentLoaded', () => {
             pcUpdatePill.style.display = 'flex';
             if (pcUpdateVer) pcUpdateVer.textContent = 'v' + data.latestVersion;
           }
-          if (data.pcDownloadUrl) latestPcSetupUrl = data.pcDownloadUrl;
+          latestPcVersion = data.latestVersion;
           if (pcUpdateStatusMsg) {
             pcUpdateStatusMsg.textContent = `🚀 Yeni sürüm mevcut: v${data.latestVersion}`;
           }
           if (manual || (lastNotifiedUpdateVersion !== data.latestVersion && deferredUpdateVersion !== data.latestVersion)) {
             showToast(`🚀 Yeni Güncelleme Yayında: v${data.latestVersion}`);
             lastNotifiedUpdateVersion = data.latestVersion;
-            showUpdateDialog(data.latestVersion, data.notes, data.pcDownloadUrl);
+            showUpdateDialog(data.latestVersion, data.notes);
           }
         } else {
           if (pcUpdatePill) pcUpdatePill.style.display = 'none';
@@ -654,33 +649,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnCheckUpdateManual?.addEventListener('click', () => checkAppUpdate(true));
   pcBtnDownloadUpdate?.addEventListener('click', () => {
-    if (latestPcSetupUrl && updateDialogVersion?.dataset.version) showUpdateDialog(updateDialogVersion.dataset.version, updateDialogNotes?.textContent, latestPcSetupUrl);
+    if (latestPcVersion) showUpdateDialog(latestPcVersion, updateDialogNotes?.textContent);
   });
   document.getElementById('updateLaterBtn')?.addEventListener('click', () => closeUpdateDialog(true));
   document.getElementById('updateDialogClose')?.addEventListener('click', () => closeUpdateDialog(true));
   updateDownloadBtn?.addEventListener('click', async () => {
-    if (!updateDownloadUrl) return;
-    if (!window.phoneLink?.downloadUpdate) { showToast('Uygulama içi indirme yalnızca Windows uygulamasında kullanılabilir.'); return; }
+    if (!window.phoneLink?.startUpdateInstall) { showToast('Uygulama içi güncelleme yalnızca Windows uygulamasında kullanılabilir.'); return; }
     updateDownloadBtn.disabled = true;
     updateDownloadBtn.textContent = 'İndiriliyor…';
-    if (updateDownloadStatus) updateDownloadStatus.textContent = 'GitHub üzerinden güvenli indirme başlatıldı…';
+    if (updateDownloadStatus) updateDownloadStatus.textContent = 'Güncelleme GitHub’dan alınıyor…';
     try {
-      const result = await window.phoneLink.downloadUpdate(updateDownloadUrl);
-      downloadedUpdatePath = result.path;
-      updateDownloadBtn.textContent = 'İndirildi';
-      if (updateDownloadStatus) updateDownloadStatus.textContent = `${result.filename} İndirilenler klasörüne kaydedildi. Kurulumu sen başlatabilirsin.`;
-      if (updateRevealBtn) updateRevealBtn.style.display = 'block';
+      await window.phoneLink.startUpdateInstall();
+      updateDownloadBtn.textContent = 'İndiriliyor…';
+      if (updateDownloadStatus) updateDownloadStatus.textContent = 'İndirme başladı. Tamamlanınca uygulama otomatik güncellenecek.';
     } catch (error) {
       updateDownloadBtn.disabled = false;
       updateDownloadBtn.textContent = 'Yeniden dene';
       if (updateDownloadStatus) updateDownloadStatus.textContent = error?.message || 'İndirme başarısız oldu. İnternet bağlantısını kontrol et.';
     }
   });
-  updateRevealBtn?.addEventListener('click', () => { if (downloadedUpdatePath) window.phoneLink?.revealDownloadedFile(downloadedUpdatePath); });
-  window.phoneLink?.onDownloadProgress(progress => {
-    if (updateDownloadStatus && !downloadedUpdatePath) updateDownloadStatus.textContent = progress.percent == null
-      ? `İndiriliyor: ${(progress.received / 1024 / 1024).toFixed(1)} MB`
-      : `İndiriliyor: %${progress.percent}`;
+  window.phoneLink?.onUpdateInstallState(update => {
+    if (update.state === 'downloading') {
+      if (updateDownloadStatus) updateDownloadStatus.textContent = `Güncelleme indiriliyor: %${update.percent ?? 0}`;
+      if (updateDownloadBtn) { updateDownloadBtn.disabled = true; updateDownloadBtn.textContent = 'İndiriliyor…'; }
+    } else if (update.state === 'installing') {
+      if (updateDownloadStatus) updateDownloadStatus.textContent = 'İndirme tamamlandı. PhoneLink kapanıp güncellenecek ve yeniden açılacak…';
+      if (updateDownloadBtn) updateDownloadBtn.textContent = 'Kuruluyor…';
+    } else if (update.state === 'error') {
+      if (updateDownloadStatus) updateDownloadStatus.textContent = update.message || 'Güncelleme indirilemedi.';
+      if (updateDownloadBtn) { updateDownloadBtn.disabled = false; updateDownloadBtn.textContent = 'Yeniden dene'; }
+    }
   });
 
   checkAppUpdate(false);

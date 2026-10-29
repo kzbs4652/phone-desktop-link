@@ -444,9 +444,11 @@ function compareVersions(left, right) {
 
 function loadUpdateManifest() {
   return new Promise((resolve, reject) => {
-    const request = https.get(UPDATE_MANIFEST_URL, {
+    const manifestUrl = new URL(UPDATE_MANIFEST_URL);
+    manifestUrl.searchParams.set('_', String(Date.now()));
+    const request = https.get(manifestUrl, {
       timeout: 8000,
-      headers: { 'Cache-Control': 'no-cache' }
+      headers: { 'Cache-Control': 'no-cache, no-store', Pragma: 'no-cache' }
     }, response => {
       if (response.statusCode < 200 || response.statusCode >= 300) {
         response.resume();

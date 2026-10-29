@@ -39,6 +39,9 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val PERMISSION_REQUEST_CODE = 1001
         private const val DIALER_ROLE_REQUEST_CODE = 1002
+        private const val UPDATE_INSTALL_SOURCE_REQUEST_CODE = 1003
+        private const val PREF_PENDING_UPDATE_DOWNLOAD_ID = "pendingAndroidUpdateDownloadId"
+        private const val PREF_PENDING_UPDATE_URL = "pendingAndroidUpdateUrl"
         private const val UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/kzbs4652/phone-desktop-link/main/version.json"
     }
 
@@ -65,6 +68,8 @@ class MainActivity : AppCompatActivity() {
     private var currentUpdateVersion: String? = null
     private var currentUpdateNotes: String = ""
     private var updatePromptShownFor: String? = null
+    private var pendingUpdateUrl: String? = null
+    private var updateDownloadReceiverRegistered = false
     private val discoveredHosts = mutableSetOf<String>()
     private val updateHandler = Handler(Looper.getMainLooper())
     private val periodicUpdateCheck = object : Runnable {
@@ -91,6 +96,15 @@ class MainActivity : AppCompatActivity() {
                     appendLog(message)
                 }
             }
+        }
+    }
+
+    private val updateDownloadReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
+            val completedId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
+            val expectedId = getSharedPreferences("updates", MODE_PRIVATE).getLong(PREF_PENDING_UPDATE_DOWNLOAD_ID, -1L)
+            if (completedId == expectedId && completedId != -1L) handleUpdateDownloadComplete(completedId)
         }
     }
 
@@ -196,6 +210,16 @@ class MainActivity : AppCompatActivity() {
             ContextCompat.registerReceiver(this, serviceReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
             receiverRegistered = true
         }
+        if (!updateDownloadReceiverRegistered) {
+            ContextCompat.registerReceiver(
+                this,
+                updateDownloadReceiver,
+                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                ContextCompat.RECEIVER_EXPORTED
+            )
+            updateDownloadReceiverRegistered = true
+        }
+        checkPendingUpdateDownload()
         PhoneLinkService.instance?.announceCurrentStatus()
         updateHandler.removeCallbacks(periodicUpdateCheck)
         updateHandler.postDelayed(periodicUpdateCheck, 60 * 60 * 1000L)
@@ -206,6 +230,10 @@ class MainActivity : AppCompatActivity() {
         if (receiverRegistered) {
             unregisterReceiver(serviceReceiver)
             receiverRegistered = false
+        }
+        if (updateDownloadReceiverRegistered) {
+            unregisterReceiver(updateDownloadReceiver)
+            updateDownloadReceiverRegistered = false
         }
         super.onStop()
     }
@@ -259,6 +287,19 @@ class MainActivity : AppCompatActivity() {
 
     @Deprecated("QR scanner returns through the Android activity result API")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == UPDATE_INSTALL_SOURCE_REQUEST_CODE) {
+            val preferences = getSharedPreferences("updates", MODE_PRIVATE)
+            val updateUrl = pendingUpdateUrl ?: preferences.getString(PREF_PENDING_UPDATE_URL, null)
+            pendingUpdateUrl = null
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls()) {
+                preferences.edit().remove(PREF_PENDING_UPDATE_URL).apply()
+                updateUrl?.let { downloadUpdateApk(it) }
+            } else {
+                preferences.edit().remove(PREF_PENDING_UPDATE_URL).apply()
+                Toast.makeText(this, "Güncellemeyi kurmak için PhoneLink'e bilinmeyen uygulama izni vermen gerekiyor.", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
         if (requestCode == DIALER_ROLE_REQUEST_CODE) {
             if (resultCode == RESULT_OK) appendLog("PhoneLink arama denetimi etkinleştirildi.")
             else appendLog("Varsayılan telefon uygulaması değiştirilmedi; bilgisayardan gelişmiş arama tuşları çalışmayabilir.")
@@ -373,10 +414,11 @@ class MainActivity : AppCompatActivity() {
         Thread {
             var connection: HttpURLConnection? = null
             try {
-                connection = URL(UPDATE_MANIFEST_URL).openConnection() as HttpURLConnection
+                connection = URL("$UPDATE_MANIFEST_URL?_=${System.currentTimeMillis()}").openConnection() as HttpURLConnection
                 connection.connectTimeout = 7000
                 connection.readTimeout = 7000
-                connection.setRequestProperty("Cache-Control", "no-cache")
+                connection.setRequestProperty("Cache-Control", "no-cache, no-store")
+                connection.setRequestProperty("Pragma", "no-cache")
                 val manifest = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
                 val androidInfo = manifest.optJSONObject("android") ?: JSONObject()
                 val latest = androidInfo.optString("version", manifest.optString("version", BuildConfig.VERSION_NAME))
@@ -426,21 +468,91 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Güvenli GitHub APK adresi bulunamadı.", Toast.LENGTH_LONG).show()
             return
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+            pendingUpdateUrl = url
+            getSharedPreferences("updates", MODE_PRIVATE).edit().putString(PREF_PENDING_UPDATE_URL, url).apply()
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("PhoneLink güncelleme izni")
+                .setMessage("APK indirilince Android kurulum ekranını açabilmek için PhoneLink'in bu kaynaktan uygulama yüklemesine izin ver. Son yükleme onayını Android gösterecek.")
+                .setPositiveButton("Ayarlara git") { _, _ ->
+                    try {
+                        startActivityForResult(
+                            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")),
+                            UPDATE_INSTALL_SOURCE_REQUEST_CODE
+                        )
+                    } catch (_: Exception) {
+                        pendingUpdateUrl = null
+                        getSharedPreferences("updates", MODE_PRIVATE).edit().remove(PREF_PENDING_UPDATE_URL).apply()
+                        Toast.makeText(this, "Bu ayar açılamadı. Android ayarlarından PhoneLink için uygulama yükleme iznini aç.", Toast.LENGTH_LONG).show()
+                    }
+                }
+                .setNegativeButton("Daha sonra") { _, _ ->
+                    pendingUpdateUrl = null
+                    getSharedPreferences("updates", MODE_PRIVATE).edit().remove(PREF_PENDING_UPDATE_URL).apply()
+                }
+                .show()
+            return
+        }
+        downloadUpdateApk(url)
+    }
+
+    private fun downloadUpdateApk(url: String) {
+        pendingUpdateUrl = null
         try {
-            val fileName = "KZBS-PhoneLink-v${currentUpdateVersion ?: "update"}.apk"
+            val uri = Uri.parse(url)
+            val version = currentUpdateVersion ?: "update"
+            val fileName = "KZBS-PhoneLink-v$version.apk"
             val request = DownloadManager.Request(uri)
-                .setTitle("KZBS PhoneLink v${currentUpdateVersion ?: "güncelleme"}")
-                .setDescription("PhoneLink APK indiriliyor. Kurulumu indirme tamamlanınca sen başlatabilirsin.")
+                .setTitle("KZBS PhoneLink v$version")
+                .setDescription("Güncelleme indiriliyor. İndirme bitince Android kurulum ekranı açılacak.")
                 .setMimeType("application/vnd.android.package-archive")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 .setAllowedOverMetered(true)
                 .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
             val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            manager.enqueue(request)
-            Toast.makeText(this, "APK İndirilenler klasörüne indiriliyor. Kurulumu indirme bildiriminden sen başlat.", Toast.LENGTH_LONG).show()
+            val downloadId = manager.enqueue(request)
+            getSharedPreferences("updates", MODE_PRIVATE).edit().putLong(PREF_PENDING_UPDATE_DOWNLOAD_ID, downloadId).apply()
+            Toast.makeText(this, "APK indiriliyor; bitince Android kurulum ekranı açılacak.", Toast.LENGTH_LONG).show()
             appendLog("Güncelleme indiriliyor: $fileName")
         } catch (error: Exception) {
             Toast.makeText(this, "APK indirilemedi: ${error.localizedMessage ?: "bağlantıyı kontrol et"}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun checkPendingUpdateDownload() {
+        val downloadId = getSharedPreferences("updates", MODE_PRIVATE).getLong(PREF_PENDING_UPDATE_DOWNLOAD_ID, -1L)
+        if (downloadId != -1L) handleUpdateDownloadComplete(downloadId)
+    }
+
+    private fun handleUpdateDownloadComplete(downloadId: Long) {
+        val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val cursor = manager.query(DownloadManager.Query().setFilterById(downloadId)) ?: return
+        cursor.use {
+            if (!it.moveToFirst()) return
+            when (it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))) {
+                DownloadManager.STATUS_SUCCESSFUL -> {
+                    val apkUri = manager.getUriForDownloadedFile(downloadId)
+                    if (apkUri == null) {
+                        appendLog("APK indirildi ama Android kurulum adresini açamadı.")
+                        return
+                    }
+                    try {
+                        val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(apkUri, "application/vnd.android.package-archive")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        startActivity(installIntent)
+                        getSharedPreferences("updates", MODE_PRIVATE).edit().remove(PREF_PENDING_UPDATE_DOWNLOAD_ID).apply()
+                        appendLog("İndirme tamamlandı. Android kurulum ekranını onayla.")
+                    } catch (error: Exception) {
+                        appendLog("Android kurulum ekranı açılamadı: ${error.localizedMessage ?: "bilinmeyen hata"}")
+                    }
+                }
+                DownloadManager.STATUS_FAILED -> {
+                    getSharedPreferences("updates", MODE_PRIVATE).edit().remove(PREF_PENDING_UPDATE_DOWNLOAD_ID).apply()
+                    appendLog("Güncelleme indirilemedi. İnternet bağlantısını kontrol edip yeniden dene.")
+                }
+            }
         }
     }
 
@@ -450,7 +562,7 @@ class MainActivity : AppCompatActivity() {
         if (!force && updatePromptShownFor == version) return
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("PhoneLink v$version güncellemesi")
-            .setMessage((currentUpdateNotes.ifBlank { "Yeni güncelleme hazır. APK uygulama içinden indirilecek; kurulumu sen başlatacaksın." }) + "\n\nŞimdi indirilsin mi?")
+            .setMessage((currentUpdateNotes.ifBlank { "Yeni sürüm hazır. APK indirilecek ve Android kurulum ekranı açılacak." }) + "\n\nŞimdi indirilsin mi?")
             .setPositiveButton("Şimdi indir") { _, _ -> openUpdateDownload() }
             .setNegativeButton("Daha sonra") { _, _ ->
                 getSharedPreferences("updates", MODE_PRIVATE).edit().putString("deferredAndroidVersion", version).apply()

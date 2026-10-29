@@ -12,6 +12,7 @@ android-app/local.properties
 dist/KZBS-PhoneLink-Setup-v*.exe
 dist/KZBS-PhoneLink-v*.apk
 dist/*.blockmap
+dist/latest.yml
 dist/win-unpacked/
 dist/win-unpacked.tmp/
 pc-app/package_dist/

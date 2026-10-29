@@ -1,7 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
-const fs = require('fs');
-const https = require('https');
+const { autoUpdater } = require('electron-updater');
 
 process.env.PHONELINK_DATA_DIR = app.getPath('userData');
 
@@ -9,62 +8,45 @@ process.env.PHONELINK_DATA_DIR = app.getPath('userData');
 const server = require('./server.js');
 
 let mainWindow;
+let updateDownloadStarted = false;
 
-const DOWNLOAD_HOSTS = new Set([
-  'github.com',
-  'release-assets.githubusercontent.com',
-  'objects.githubusercontent.com'
-]);
+function sendUpdateState(state, details = {}) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-install-state', { state, ...details });
+  }
+}
 
-function downloadGithubAsset(rawUrl, sender, redirectCount = 0) {
-  return new Promise((resolve, reject) => {
-    let url;
-    try { url = new URL(rawUrl); } catch (_) { reject(new Error('İndirme adresi geçersiz.')); return; }
-    if (url.protocol !== 'https:' || !DOWNLOAD_HOSTS.has(url.hostname) || redirectCount > 5) {
-      reject(new Error('Güvenli GitHub indirme adresi kabul edilmedi.'));
-      return;
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = false;
+autoUpdater.on('download-progress', progress => {
+  sendUpdateState('downloading', { percent: Math.floor(progress.percent), transferred: progress.transferred, total: progress.total });
+});
+autoUpdater.on('update-downloaded', info => {
+  sendUpdateState('installing', { version: info.version });
+  setTimeout(() => autoUpdater.quitAndInstall(true, true), 900);
+});
+autoUpdater.on('error', error => {
+  updateDownloadStarted = false;
+  sendUpdateState('error', { message: error?.message || 'Güncelleme indirilemedi.' });
+});
+
+async function downloadAndInstallUpdate() {
+  if (!app.isPackaged) throw new Error('Uygulama içi güncelleme yalnızca kurulu Windows uygulamasında çalışır.');
+  if (updateDownloadStarted) return { started: true };
+  updateDownloadStarted = true;
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    if (!result?.isUpdateAvailable) {
+      updateDownloadStarted = false;
+      throw new Error('Yeni sürüm sunucuda henüz kurulum için hazır değil. Biraz sonra tekrar dene.');
     }
-
-    const request = https.get(url, { headers: { 'User-Agent': 'KZBS-PhoneLink-Updater' } }, response => {
-      if ([301, 302, 303, 307, 308].includes(response.statusCode) && response.headers.location) {
-        response.resume();
-        downloadGithubAsset(new URL(response.headers.location, url).toString(), sender, redirectCount + 1).then(resolve, reject);
-        return;
-      }
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        response.resume();
-        reject(new Error(`İndirme sunucusu HTTP ${response.statusCode} döndürdü.`));
-        return;
-      }
-
-      const requestedName = path.basename(decodeURIComponent(url.pathname));
-      const filename = requestedName.replace(/[^\w.() -]/g, '_') || 'PhoneLink-Update.exe';
-      const destination = path.join(app.getPath('downloads'), filename);
-      const temporary = `${destination}.download`;
-      const output = fs.createWriteStream(temporary);
-      const total = Number(response.headers['content-length']) || 0;
-      let received = 0;
-      response.on('data', chunk => {
-        received += chunk.length;
-        if (!sender.isDestroyed()) sender.send('download-update-progress', { received, total, percent: total ? Math.floor(received * 100 / total) : null });
-      });
-      response.pipe(output);
-      output.on('finish', () => output.close(() => {
-        try {
-          if (fs.existsSync(destination)) fs.unlinkSync(destination);
-          fs.renameSync(temporary, destination);
-          resolve({ path: destination, filename });
-        } catch (error) { reject(error); }
-      }));
-      output.on('error', error => {
-        response.destroy();
-        try { fs.unlinkSync(temporary); } catch (_) {}
-        reject(error);
-      });
-    });
-    request.setTimeout(120000, () => request.destroy(new Error('İndirme zaman aşımına uğradı.')));
-    request.on('error', reject);
-  });
+    sendUpdateState('downloading', { percent: 0 });
+    await autoUpdater.downloadUpdate();
+    return { started: true };
+  } catch (error) {
+    updateDownloadStarted = false;
+    throw error;
+  }
 }
 
 function createWindow() {
@@ -110,12 +92,7 @@ function createWindow() {
     }
   });
 
-  ipcMain.handle('download-update', (event, url) => downloadGithubAsset(url, event.sender));
-  ipcMain.on('reveal-downloaded-file', (_event, filePath) => {
-    if (typeof filePath === 'string' && path.dirname(filePath) === app.getPath('downloads') && fs.existsSync(filePath)) {
-      shell.showItemInFolder(filePath);
-    }
-  });
+  ipcMain.handle('start-update-install', downloadAndInstallUpdate);
 
   ipcMain.handle('open-pairing-window', async () => {
     const response = await fetch('http://127.0.0.1:4955/api/open-pairing', { method: 'POST' });

@@ -1,4 +1,4 @@
-# KZBS PhoneLink v1.0.5
+# KZBS PhoneLink v1.0.6
 
 Android telefon ile Windows bilgisayar arasında yerel Wi-Fi üzerinden bağlantı kurar. Telefon eşleştirme kodunu doğruladıktan sonra izin verilen SMS'leri, kişileri ve arama geçmişini bilgisayara aktarır. Bilgisayardan telefon hattıyla arama başlatabilir ve SMS gönderebilirsiniz.
 
@@ -15,11 +15,11 @@ Telefon bağlı değilken bilgisayar arayüzü örnek telefon bilgisi göstermez
 
 ## Paket oluşturma
 
-- Windows kurucusu: `pc-app/bundle_app.ps1` (`dist/KZBS-PhoneLink-Setup-v1.0.5.exe`)
-- Android APK: `android-app/build_apk.ps1` (`dist/KZBS-PhoneLink-v1.0.5.apk`)
+- Windows kurucusu: `pc-app/bundle_app.ps1` (`dist/KZBS-PhoneLink-Setup-v1.0.6.exe`)
+- Android APK: `android-app/build_apk.ps1` (`dist/KZBS-PhoneLink-v1.0.6.apk`)
 
 Android güncellemelerinin mevcut kurulumun üzerine yüklenebilmesi için `android-app/build_temp/debug.keystore` dosyasını koruyun.
 
 ## Güncelleme bildirimi
 
-Windows ve Android aynı `version.json` sürüm numarasını kullanır. Yeni sürüm GitHub Release olarak yayımlandıktan ve güncel `version.json` `main` dalına gönderildikten sonra uygulamalar **Şimdi indir / Daha sonra** bildirimi gösterir. İndirme uygulama içinden yapılır; Windows kurulumunu veya Android APK kurulumunu kullanıcı başlatır.
+Windows ve Android aynı `version.json` sürüm numarasını kullanır. Yeni sürüm GitHub Release olarak yayımlandıktan ve güncel `version.json` `main` dalına gönderildikten sonra uygulamalar **Şimdi indir / Daha sonra** bildirimi gösterir. Windows'ta indirme bitince uygulama kapanıp kurulumu başlatır ve yeniden açılır. Android'de APK uygulama içinden indirilir ve sistem kurulum ekranı açılır; Android'in son yükleme onayı kullanıcı tarafından verilir.

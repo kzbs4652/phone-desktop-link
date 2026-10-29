@@ -1,16 +1,16 @@
 {
-  "version": "1.0.5",
-  "versionCode": 6,
+  "version": "1.0.6",
+  "versionCode": 7,
   "releaseDate": "2026-10-29",
-  "title": "KZBS PhoneLink v1.0.5",
-  "notes": "Tam SMS geçmişi eşitlenir. Arama ekranına DTMF tuş takımı, sessize alma, arama ekleme, bekletme ve aramayı bitirme kontrolleri eklendi. Bluetooth arama sesi, telefon ve bilgisayar Bluetooth eller serbest eşleşmesi destekliyorsa seçilebilir.",
+  "title": "KZBS PhoneLink v1.0.6",
+  "notes": "Windows güncellemeleri uygulama içinden indirip kurar ve yeniden başlatır. Android güncellemeleri indirip sistem kurulum ekranını açar. Windows ve Android sürüm numaraları eşleştirildi.",
   "pc": {
-    "version": "1.0.5",
-    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.5/KZBS-PhoneLink-Setup-v1.0.5.exe"
+    "version": "1.0.6",
+    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.6/KZBS-PhoneLink-Setup-v1.0.6.exe"
   },
   "android": {
-    "version": "1.0.5",
-    "versionCode": 6,
-    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.5/KZBS-PhoneLink-v1.0.5.apk"
+    "version": "1.0.6",
+    "versionCode": 7,
+    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.6/KZBS-PhoneLink-v1.0.6.apk"
   }
 }
