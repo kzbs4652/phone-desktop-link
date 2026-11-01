@@ -185,6 +185,10 @@ class PhoneInCallService : InCallService() {
                 override fun onResult(result: Void?) { currentRoute = endpointName(endpoint); currentCall?.let(::publishCall) }
                 override fun onError(error: android.telecom.CallEndpointException) {
                     Log.w("PhoneInCallService", "Ses yönü değiştirilemedi: ${error.message}")
+                    val event = JSONObject()
+                        .put("action", "APP_ERROR")
+                        .put("payload", JSONObject().put("message", "Bluetooth görüşme sesi seçilemedi. Telefon ile bilgisayarın eller serbest arama bağlantısını kontrol et."))
+                    PhoneLinkService.instance?.sendToPc(event.toString())
                 }
             })
             return true

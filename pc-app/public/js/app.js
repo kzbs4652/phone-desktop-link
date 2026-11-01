@@ -1,4 +1,4 @@
-// KZBS PhoneLink v1.0.6 Client Controller
+// KZBS PhoneLink v1.0.7 Client Controller
 document.addEventListener('DOMContentLoaded', () => {
   // --- State ---
   let currentTab = 'keypad';
@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let contacts = [];
   let callLogs = [];
   let messages = [];
+  let messageSyncStatus = { state: 'idle', message: 'Telefon bağlanınca mesajlar eşitlenir.', count: 0, lastSyncedAt: null };
   let activeThreadPhone = null;
 
   // --- DOM Elements ---
@@ -74,9 +75,11 @@ document.addEventListener('DOMContentLoaded', () => {
         contacts = payload.contacts || [];
         callLogs = payload.callLogs || [];
         messages = payload.messages || [];
+        messageSyncStatus = payload.messageSyncStatus || messageSyncStatus;
         updateDeviceStatusUI();
         renderContacts(contacts);
         renderCallLogs(callLogs);
+        renderMessageSyncStatus();
         renderMessages();
         renderActiveCall();
         break;
@@ -96,7 +99,9 @@ document.addEventListener('DOMContentLoaded', () => {
         break;
 
       case 'NEW_SMS':
-        messages.unshift(payload);
+        if (!messages.some(message => message.id === payload.id)) messages.unshift(payload);
+        messageSyncStatus = { ...messageSyncStatus, count: messages.length };
+        renderMessageSyncStatus();
         renderMessages();
         showToast(`💬 SMS: ${payload.sender} - ${String(payload.text || '').substring(0, 36)}...`);
         if (payload.code) {
@@ -117,6 +122,14 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'MESSAGES_UPDATED':
         messages = Array.isArray(payload) ? payload : [];
         activeThreadPhone = null;
+        messageSyncStatus = { ...messageSyncStatus, count: messages.length };
+        renderMessageSyncStatus();
+        renderMessages();
+        break;
+
+      case 'MESSAGES_SYNC_STATUS':
+        messageSyncStatus = payload || messageSyncStatus;
+        renderMessageSyncStatus();
         renderMessages();
         break;
 
@@ -128,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'PHONE_CONNECTION_CHANGED':
         deviceState = { ...deviceState, ...payload };
         updateDeviceStatusUI();
+        renderMessageSyncStatus();
         refreshPairingInfo();
         break;
     }
@@ -388,8 +402,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (threadsMap.size === 0) {
-      threadsList.innerHTML = `<div style="text-align:center; padding: 24px 12px; color: #8e8e93;">${deviceState.connected ? 'Telefonda mesaj bulunamadı.' : 'Mesajları görmek için telefonunu bağla.'}</div>`;
-      chatStream.innerHTML = '<div style="text-align:center; padding: 40px; color: #8e8e93;">Telefon bağlandığında SMS’ler burada görünür.</div>';
+      const emptyMessage = messageSyncStatus.state === 'error'
+        ? messageSyncStatus.message || 'SMS eşitlemesi tamamlanamadı.'
+        : messageSyncStatus.state === 'syncing'
+          ? 'SMS’ler telefondan eşitleniyor…'
+          : deviceState.connected ? 'Telefonda mesaj bulunamadı.' : 'Mesajları görmek için telefonunu bağla.';
+      threadsList.innerHTML = `<div style="text-align:center; padding: 24px 12px; color: #8e8e93;">${escapeHtml(emptyMessage)}</div>`;
+      chatStream.innerHTML = `<div style="text-align:center; padding: 40px; color: #8e8e93;">${escapeHtml(emptyMessage)}</div>`;
       activeChatTitle.textContent = 'Mesajlar';
       return;
     }
@@ -453,6 +472,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function renderMessageSyncStatus() {
+    const status = document.getElementById('messageSyncStatus');
+    const button = document.getElementById('syncMessagesBtn');
+    if (!status) return;
+    const state = messageSyncStatus.state || 'idle';
+    const count = Number(messageSyncStatus.count ?? messages.length) || 0;
+    const labels = {
+      idle: messageSyncStatus.message || 'Telefon bağlanınca mesajlar eşitlenir.',
+      cached: `${count} mesaj bu bilgisayarda kayıtlı${deviceState.connected ? '' : ' · telefon bağlı değil'}`,
+      syncing: messageSyncStatus.message || 'SMS’ler telefondan okunuyor…',
+      synced: messageSyncStatus.lastSyncedAt
+        ? `${count} mesaj eşitlendi · ${new Date(messageSyncStatus.lastSyncedAt).toLocaleString('tr-TR')}`
+        : messageSyncStatus.message || `${count} mesaj eşitlendi.`,
+      interrupted: messageSyncStatus.message || 'Eşitleme kesildi; kayıtlı mesajlar korundu.',
+      error: messageSyncStatus.message || 'SMS eşitlemesi tamamlanamadı.',
+      storage_error: messageSyncStatus.message || 'Mesajlar bu bilgisayara kaydedilemedi.'
+    };
+    status.textContent = labels[state] || messageSyncStatus.message || `${count} mesaj`;
+    status.dataset.state = state;
+    if (button) button.disabled = !deviceState.connected || state === 'syncing';
+  }
+
+  document.getElementById('syncMessagesBtn')?.addEventListener('click', () => {
+    sendToServer('REQ_SYNC_ALL');
+  });
+
   // Send SMS button
   document.getElementById('sendSmsBtn')?.addEventListener('click', () => {
     const text = smsInput.value.trim();
@@ -478,13 +523,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const muteButton = document.getElementById('muteBtn');
       const routeButton = document.getElementById('speakerBtn');
       const holdButton = document.getElementById('holdCallBtn');
+      const hasRouteInfo = Array.isArray(activeCall.availableRoutes) && activeCall.availableRoutes.length > 0;
+      const bluetoothRouteAvailable = activeCall.availableRoutes?.includes('BLUETOOTH');
       muteButton?.classList.toggle('active', Boolean(activeCall.isMuted));
       routeButton?.classList.toggle('active', activeCall.audioRoute === 'BLUETOOTH');
+      if (routeButton) {
+        routeButton.disabled = hasRouteInfo && !bluetoothRouteAvailable && activeCall.audioRoute !== 'BLUETOOTH';
+        routeButton.title = routeButton.disabled
+          ? 'Telefon kullanılabilir bir Bluetooth arama aygıtı görmüyor.'
+          : 'Telefon görüşme sesini bilgisayarın Bluetooth eller serbest aygıtına yönlendir.';
+      }
       holdButton?.classList.toggle('active', activeCall.status === 'HOLDING');
       const audioNote = document.getElementById('incallAudioNote');
       if (audioNote) audioNote.textContent = activeCall.audioRoute === 'BLUETOOTH'
         ? 'Bluetooth arama sesi seçildi. Ses, telefon ile eşleşmiş bilgisayarın eller serbest ses bağlantısından geçer.'
-        : 'PC sesi için telefon ve bilgisayarı Bluetooth arama cihazı olarak eşleştirip PC sesi (BT) düğmesine bas. Arama kontrolleri için telefonda PhoneLink arama denetimini etkinleştir.';
+        : hasRouteInfo && !bluetoothRouteAvailable
+          ? 'Telefon kullanılabilir bir Bluetooth görüşme aygıtı görmüyor. Telefonu Windows ile eller serbest arama aygıtı olarak eşleştir; destek Windows sürücüsüne bağlıdır.'
+          : 'PC sesi için telefonu Windows ile Bluetooth eller serbest arama aygıtı olarak eşleştirip PC sesi (BT) düğmesine bas. Arama denetimi için telefonda PhoneLink’i varsayılan telefon uygulaması yap.';
       incallOverlay.classList.add('active');
     } else {
       incallOverlay.classList.remove('active');

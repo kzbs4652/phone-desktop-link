@@ -84,6 +84,7 @@ class PhoneLinkService : Service() {
     private var isConnected = false
     private var isShuttingDown = false
     private var discoveryJob: Job? = null
+    private var dataSyncJob: Job? = null
     private var multicastLock: WifiManager.MulticastLock? = null
 
     override fun onCreate() {
@@ -546,33 +547,64 @@ class PhoneLinkService : Service() {
     }
 
     private fun syncPhoneData() {
-        scope.launch {
+        if (dataSyncJob?.isActive == true) return
+        dataSyncJob = scope.launch {
             try {
-                val contacts = ContactsHelper.fetchContacts(this@PhoneLinkService)
-                sendSyncPayload("CONTACTS_SYNCED", gson.toJsonTree(contacts))
-
-                val callLogs = CallLogsHelper.fetchCallLogs(this@PhoneLinkService)
-                sendSyncPayload("CALL_LOGS_SYNCED", gson.toJsonTree(callLogs))
-
-                val messages = SmsHelper.fetchInbox(this@PhoneLinkService)
-                sendSyncPayload("SMS_SYNCED", gson.toJsonTree(messages))
+                sendSyncPayload("CONTACTS_SYNCED", gson.toJsonTree(ContactsHelper.fetchContacts(this@PhoneLinkService)))
             } catch (error: Exception) {
-                Log.e(TAG, "Telefon verileri eşitlenemedi: ${error.message}")
+                Log.e(TAG, "Kişiler eşitlenemedi: ${error.message}", error)
+            }
+
+            try {
+                sendSyncPayload("CALL_LOGS_SYNCED", gson.toJsonTree(CallLogsHelper.fetchCallLogs(this@PhoneLinkService)))
+            } catch (error: Exception) {
+                Log.e(TAG, "Arama geçmişi eşitlenemedi: ${error.message}", error)
+            }
+
+            sendSmsSyncStatus("syncing", "SMS’ler telefondan okunuyor…")
+            try {
+                val result = SmsHelper.fetchInbox(this@PhoneLinkService)
+                if (!result.isSuccess) {
+                    val errorCode = result.errorCode ?: "read_failed"
+                    val errorMessage = result.errorMessage ?: "SMS’ler okunamadı. İzinleri kontrol edip yeniden eşitle."
+                    Log.w(TAG, "SMS eşitlemesi tamamlanmadı: $errorCode")
+                    sendSmsSyncStatus("error", errorMessage, errorCode)
+                    return@launch
+                }
+
+                val messages = result.messages.orEmpty()
+                if (!sendSyncPayload("SMS_SYNCED", gson.toJsonTree(messages))) {
+                    sendSmsSyncStatus("error", "Telefon ile bilgisayar arasındaki bağlantı kesildi. Yeniden eşitle.", "connection_lost")
+                }
+            } catch (error: Exception) {
+                Log.e(TAG, "SMS’ler eşitlenemedi: ${error.message}", error)
+                sendSmsSyncStatus("error", "SMS kutusu okunamadı. Telefonu ve izinleri kontrol edip yeniden eşitle.", "read_failed")
             }
         }
     }
 
-    private fun sendSyncPayload(action: String, payload: com.google.gson.JsonElement) {
+    private fun sendSmsSyncStatus(state: String, message: String, errorCode: String? = null) {
+        val payload = JsonObject().apply {
+            addProperty("state", state)
+            addProperty("message", message)
+            if (errorCode != null) addProperty("errorCode", errorCode)
+        }
         val event = JsonObject().apply {
-            addProperty("action", action)
+            addProperty("action", "SMS_SYNC_STATUS")
             add("payload", payload)
         }
         sendToPc(event.toString())
     }
 
-    fun sendToPc(jsonString: String) {
-        webSocket?.send(jsonString)
+    private fun sendSyncPayload(action: String, payload: com.google.gson.JsonElement): Boolean {
+        val event = JsonObject().apply {
+            addProperty("action", action)
+            add("payload", payload)
+        }
+        return sendToPc(event.toString())
     }
+
+    fun sendToPc(jsonString: String): Boolean = webSocket?.send(jsonString) == true
 
     override fun onDestroy() {
         isShuttingDown = true

@@ -619,6 +619,46 @@ body {
 /* =========================================================
    4. MESSAGES / SMS (Mesajlaşma)
 ========================================================= */
+.message-sync-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.message-sync-status {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.message-sync-status[data-state="error"],
+.message-sync-status[data-state="storage_error"] {
+  color: var(--ios-red);
+}
+
+.message-sync-status[data-state="synced"] {
+  color: var(--neon-cyan);
+}
+
+.sync-messages-button {
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 242, 254, 0.45);
+  border-radius: 16px;
+  padding: 6px 11px;
+  color: var(--neon-cyan);
+  background: rgba(0, 242, 254, 0.08);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sync-messages-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .messages-container {
   display: grid;
   grid-template-columns: 340px 1fr;

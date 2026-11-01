@@ -19,6 +19,7 @@ const UPDATE_MANIFEST_URL = process.env.PHONELINK_UPDATE_MANIFEST_URL ||
 const pairingDataDir = process.env.PHONELINK_DATA_DIR || path.join(os.homedir(), '.kzbs-phonelink');
 fs.mkdirSync(pairingDataDir, { recursive: true });
 const pairingStatePath = path.join(pairingDataDir, 'pairing.json');
+const messagesStatePath = path.join(pairingDataDir, 'messages.json');
 function loadPairingState() {
   try {
     const value = JSON.parse(fs.readFileSync(pairingStatePath, 'utf8'));
@@ -44,7 +45,44 @@ let activeCall = null;
 let callTimer = null;
 let contacts = [];
 let callLogs = [];
-let messages = [];
+function loadMessagesState() {
+  try {
+    const value = JSON.parse(fs.readFileSync(messagesStatePath, 'utf8'));
+    if (Array.isArray(value)) return { messages: value, lastSyncedAt: null };
+    if (value && Array.isArray(value.messages)) {
+      return {
+        messages: value.messages,
+        lastSyncedAt: typeof value.lastSyncedAt === 'string' ? value.lastSyncedAt : null
+      };
+    }
+  } catch (_) {}
+  return { messages: [], lastSyncedAt: null };
+}
+const savedMessagesState = loadMessagesState();
+let messages = savedMessagesState.messages;
+let messageSyncStatus = {
+  state: messages.length ? 'cached' : 'idle',
+  message: messages.length ? 'Bu bilgisayarda kayıtlı mesajlar gösteriliyor.' : 'Telefon bağlandığında mesajlar eşitlenir.',
+  count: messages.length,
+  lastSyncedAt: savedMessagesState.lastSyncedAt
+};
+
+function saveMessagesState() {
+  const temporaryPath = `${messagesStatePath}.tmp`;
+  try {
+    fs.writeFileSync(temporaryPath, JSON.stringify({
+      version: 1,
+      messages,
+      lastSyncedAt: messageSyncStatus.lastSyncedAt
+    }), { mode: 0o600 });
+    fs.renameSync(temporaryPath, messagesStatePath);
+    return true;
+  } catch (error) {
+    try { fs.unlinkSync(temporaryPath); } catch (_) {}
+    console.error('[PhoneLink] Mesajlar bilgisayara kaydedilemedi:', error.message);
+    return false;
+  }
+}
 
 function isLoopbackAddress(address) {
   const normalized = String(address || '').replace(/^::ffff:/i, '').split('%')[0];
@@ -154,6 +192,12 @@ wss.on('connection', (ws, req) => {
       connected: true,
       ipAddress: String(req.socket.remoteAddress || '').replace(/^::ffff:/i, '')
     };
+    messageSyncStatus = {
+      ...messageSyncStatus,
+      state: 'syncing',
+      message: 'Telefon bağlandı; mesajlar eşitleniyor.',
+      count: messages.length
+    };
     console.log(`[PhoneLink] Telefon bağlantısı açıldı (${deviceState.ipAddress}).`);
     if (req.phoneLinkPairingToken) {
       ws.send(JSON.stringify({ action: 'PAIRING_COMPLETE', payload: { token: req.phoneLinkPairingToken, deviceId: pairingState.deviceId } }));
@@ -161,6 +205,7 @@ wss.on('connection', (ws, req) => {
       pairingExpiresAt = 0;
     }
     broadcastToPc('PHONE_CONNECTION_CHANGED', deviceState);
+    broadcastToPc('MESSAGES_SYNC_STATUS', messageSyncStatus);
 
     ws.on('message', data => {
       try {
@@ -173,6 +218,17 @@ wss.on('connection', (ws, req) => {
       if (connectedPhone !== ws) return;
       connectedPhone = null;
       deviceState = { ...deviceState, connected: false, batteryLevel: null, isCharging: false };
+      if (messageSyncStatus.state === 'syncing') {
+        messageSyncStatus = {
+          ...messageSyncStatus,
+          state: messages.length ? 'interrupted' : 'idle',
+          message: messages.length
+            ? 'Eşitleme kesildi; bilgisayardaki kayıtlı mesajlar korundu.'
+            : 'Telefon bağlantısı kesildi. Mesaj eşitlemesi tamamlanmadı.',
+          count: messages.length
+        };
+        broadcastToPc('MESSAGES_SYNC_STATUS', messageSyncStatus);
+      }
       if (callTimer) clearInterval(callTimer);
       callTimer = null;
       activeCall = null;
@@ -186,7 +242,7 @@ wss.on('connection', (ws, req) => {
   pcClients.add(ws);
   ws.send(JSON.stringify({
     action: 'INIT_STATE',
-    payload: { deviceState, activeCall, contacts, callLogs, messages }
+    payload: { deviceState, activeCall, contacts, callLogs, messages, messageSyncStatus }
   }));
   ws.on('message', data => {
     try {
@@ -223,13 +279,45 @@ function handlePhoneMessage(message) {
         isOutgoing: false
       };
       messages.unshift(sms);
+      messageSyncStatus = { ...messageSyncStatus, count: messages.length };
+      if (!saveMessagesState()) {
+        messageSyncStatus = { ...messageSyncStatus, state: 'storage_error', message: 'Yeni SMS alındı ancak bu bilgisayara kaydedilemedi.' };
+      }
       broadcastToPc('NEW_SMS', sms);
+      broadcastToPc('MESSAGES_SYNC_STATUS', messageSyncStatus);
+      break;
+    }
+    case 'SMS_SYNC_STATUS': {
+      const state = ['syncing', 'error'].includes(payload.state) ? payload.state : null;
+      if (!state) break;
+      messageSyncStatus = {
+        ...messageSyncStatus,
+        state,
+        message: String(payload.message || (state === 'syncing' ? 'SMS’ler telefondan okunuyor…' : 'SMS eşitlemesi başarısız oldu.')).slice(0, 240),
+        errorCode: state === 'error' ? String(payload.errorCode || 'sync_failed').slice(0, 80) : null,
+        count: messages.length
+      };
+      broadcastToPc('MESSAGES_SYNC_STATUS', messageSyncStatus);
       break;
     }
     case 'SMS_SYNCED':
       if (Array.isArray(payload)) {
         messages = payload;
+        messageSyncStatus = {
+          state: 'synced',
+          message: messages.length ? `${messages.length} mesaj eşitlendi.` : 'Telefonda SMS bulunamadı.',
+          count: messages.length,
+          lastSyncedAt: new Date().toISOString()
+        };
+        if (!saveMessagesState()) {
+          messageSyncStatus = {
+            ...messageSyncStatus,
+            state: 'storage_error',
+            message: 'Mesajlar alındı ancak bu bilgisayara kaydedilemedi.'
+          };
+        }
         broadcastToPc('MESSAGES_UPDATED', messages);
+        broadcastToPc('MESSAGES_SYNC_STATUS', messageSyncStatus);
       }
       break;
     case 'SMS_SEND_RESULT': {
@@ -248,7 +336,12 @@ function handlePhoneMessage(message) {
         isOutgoing: true
       };
       messages.unshift(sms);
+      messageSyncStatus = { ...messageSyncStatus, count: messages.length };
+      if (!saveMessagesState()) {
+        messageSyncStatus = { ...messageSyncStatus, state: 'storage_error', message: 'SMS gönderildi ancak bu bilgisayara kaydedilemedi.' };
+      }
       broadcastToPc('NEW_SMS', sms);
+      broadcastToPc('MESSAGES_SYNC_STATUS', messageSyncStatus);
       break;
     }
     case 'PHONE_ACTION_RESULT':
@@ -309,7 +402,9 @@ function handlePcMessage(message) {
       sendSmsFromPc(payload.phone, payload.text);
       break;
     case 'REQ_SYNC_ALL':
-      sendToPhone('REQ_SYNC_ALL', {});
+      if (!sendToPhone('REQ_SYNC_ALL', {})) {
+        broadcastToPc('APP_ERROR', { message: 'Mesajları eşitlemek için önce telefonunu PhoneLink’e bağla.' });
+      }
       break;
     default:
       console.log(`[PhoneLink] Desteklenmeyen bilgisayar isteği: ${action}`);

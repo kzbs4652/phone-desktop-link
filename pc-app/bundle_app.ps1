@@ -32,11 +32,15 @@ if (-not (Test-Path -LiteralPath $blockmapPath)) {
     throw "Windows güncelleyicisinin ihtiyaç duyduğu dosya özeti bulunamadı: $blockmapPath"
 }
 
-$hashHex = (Get-FileHash -LiteralPath $outputExe -Algorithm SHA512).Hash
-$hashBytes = for ($index = 0; $index -lt $hashHex.Length; $index += 2) {
-    [Convert]::ToByte($hashHex.Substring($index, 2), 16)
+$sha512 = [System.Security.Cryptography.SHA512]::Create()
+$installerStream = [System.IO.File]::OpenRead($outputExe)
+try {
+    $hashBytes = $sha512.ComputeHash($installerStream)
+} finally {
+    $installerStream.Dispose()
+    $sha512.Dispose()
 }
-$hashBase64 = [Convert]::ToBase64String([byte[]]$hashBytes)
+$hashBase64 = [Convert]::ToBase64String($hashBytes)
 $artifactSize = (Get-Item -LiteralPath $outputExe).Length
 $releaseDate = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
 $updateManifest = @"
