@@ -2,8 +2,11 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentTab = 'messages';
   let deviceState = { connected: false };
   let messages = [];
+  let contacts = [];
   let messageSyncStatus = { state: 'idle', message: 'Telefon bağlanınca mesajlar eşitlenir.', count: 0, lastSyncedAt: null };
+  let contactsSyncStatus = { state: 'idle', message: 'Telefon bağlanınca kişi listesi eşitlenir.', count: 0 };
   let activeThreadPhone = null;
+  let activeThreadLabel = null;
   let socket = null;
   let latestPcVersion = null;
   let lastNotifiedUpdateVersion = null;
@@ -19,6 +22,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const messageStatus = document.getElementById('messageSyncStatus');
   const syncMessagesButton = document.getElementById('syncMessagesBtn');
   const sendSmsButton = document.getElementById('sendSmsBtn');
+  const newMessageButton = document.getElementById('newMessageBtn');
+  const newMessageScreen = document.getElementById('view-new-message');
+  const recipientInput = document.getElementById('recipientInput');
+  const recipientError = document.getElementById('recipientError');
+  const contactsList = document.getElementById('newMessageContacts');
+  const contactsSyncText = document.getElementById('contactsSyncText');
   const toast = document.getElementById('toastNotice');
   const toastText = document.getElementById('toastText');
 
@@ -49,7 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'INIT_STATE':
         deviceState = payload?.deviceState || { connected: false };
         messages = Array.isArray(payload?.messages) ? payload.messages : [];
+        contacts = Array.isArray(payload?.contacts) ? payload.contacts : [];
         messageSyncStatus = payload?.messageSyncStatus || messageSyncStatus;
+        contactsSyncStatus = payload?.contactsSyncStatus || contactsSyncStatus;
         renderAll();
         break;
       case 'NEW_SMS':
@@ -61,9 +72,18 @@ document.addEventListener('DOMContentLoaded', () => {
         break;
       case 'MESSAGES_UPDATED':
         messages = Array.isArray(payload) ? payload : [];
-        if (activeThreadPhone && !messages.some(message => (message.phone || message.sender) === activeThreadPhone)) activeThreadPhone = null;
+        if (activeThreadPhone && !activeThreadLabel && !messages.some(message => getThreadPhone(message) === activeThreadPhone)) activeThreadPhone = null;
         messageSyncStatus = { ...messageSyncStatus, count: messages.length };
         renderAll();
+        break;
+      case 'CONTACTS_UPDATED':
+        contacts = Array.isArray(payload) ? payload : [];
+        contactsSyncStatus = { state: 'synced', count: contacts.length, message: `${contacts.length} kişi hazır.` };
+        renderContactPicker();
+        break;
+      case 'CONTACTS_SYNC_STATUS':
+        contactsSyncStatus = payload || contactsSyncStatus;
+        renderContactPicker();
         break;
       case 'MESSAGES_SYNC_STATUS':
         messageSyncStatus = payload || messageSyncStatus;
@@ -86,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDeviceStatus();
     renderMessageSyncStatus();
     renderMessages();
+    renderContactPicker();
   }
 
   function showToast(message) {
@@ -144,7 +165,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const tabPositions = { messages: { index: 0, offset: 10 }, status: { index: 1, offset: 108 } };
   function switchTab(targetTab) {
-    if (!tabPositions[targetTab] || currentTab === targetTab) return;
+    const composerOpen = Boolean(newMessageScreen?.classList.contains('active'));
+    if (!tabPositions[targetTab] || (currentTab === targetTab && !composerOpen)) return;
     const currentIndex = tabPositions[currentTab]?.index ?? 0;
     const nextIndex = tabPositions[targetTab].index;
     dockItems.forEach(item => item.classList.toggle('active', item.dataset.tab === targetTab));
@@ -153,6 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const active = slide.id === `view-${targetTab}`;
       slide.classList.toggle('active', active);
       slide.classList.toggle('slide-left', !active && nextIndex > currentIndex);
+      slide.setAttribute('aria-hidden', String(!active));
     });
     currentTab = targetTab;
   }
@@ -160,7 +183,118 @@ document.addEventListener('DOMContentLoaded', () => {
   if (dockPill) dockPill.style.left = '10px';
 
   function getThreadPhone(message) {
-    return String(message.phone || message.sender || '');
+    const raw = String(message.phone || message.sender || '').trim();
+    const contact = findContact(raw);
+    return normalizePhoneNumber(contact?.phone) || normalizePhoneNumber(raw) || raw;
+  }
+
+  function normalizePhoneNumber(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw || !/[0-9]/.test(raw) || !/^[\d+\s().-]+$/.test(raw)) return '';
+    const digits = raw.replace(/\D/g, '');
+    return raw.startsWith('+') ? `+${digits}` : digits;
+  }
+
+  function findContact(phone) {
+    const normalized = normalizePhoneNumber(phone);
+    if (!normalized) return null;
+    const digits = normalized.replace(/\D/g, '');
+    return contacts.find(contact => {
+      const contactPhone = normalizePhoneNumber(contact.phone);
+      if (!contactPhone) return false;
+      if (contactPhone === normalized) return true;
+      const contactDigits = contactPhone.replace(/\D/g, '');
+      return digits.length >= 10 && contactDigits.length >= 10 && digits.slice(-10) === contactDigits.slice(-10);
+    }) || null;
+  }
+
+  function openNewMessageScreen() {
+    if (recipientInput) recipientInput.value = '';
+    if (recipientError) recipientError.textContent = '';
+    viewSlides.forEach(slide => {
+      const active = slide === newMessageScreen;
+      slide.classList.toggle('active', active);
+      slide.setAttribute('aria-hidden', String(!active));
+    });
+    renderContactPicker();
+    recipientInput?.focus();
+  }
+
+  function startConversation(phoneValue, contactName = '') {
+    const phone = normalizePhoneNumber(phoneValue);
+    const digitCount = phone.replace(/\D/g, '').length;
+    if (digitCount < 5 || digitCount > 20) {
+      if (recipientError) recipientError.textContent = 'Geçerli bir telefon numarası yaz.';
+      return;
+    }
+    if (recipientError) recipientError.textContent = '';
+    const contact = findContact(phone);
+    activeThreadPhone = normalizePhoneNumber(contact?.phone) || phone;
+    activeThreadLabel = contactName || contact?.name || phone;
+    switchTab('messages');
+    renderMessages();
+    smsInput?.focus();
+  }
+
+  function renderContactPicker() {
+    if (!contactsList) return;
+    contactsList.replaceChildren();
+    const query = recipientInput?.value.trim() || '';
+    const normalizedQuery = normalizePhoneNumber(query);
+    const queryName = query.toLocaleLowerCase('tr-TR');
+    const collator = new Intl.Collator('tr', { sensitivity: 'base', numeric: true });
+    const filtered = contacts
+      .filter(contact => {
+        if (!query) return true;
+        const nameMatches = String(contact.name || '').toLocaleLowerCase('tr-TR').includes(queryName);
+        const contactPhone = normalizePhoneNumber(contact.phone);
+        const matchedContact = findContact(query);
+        const phoneMatches = Boolean(normalizedQuery && (contactPhone.includes(normalizedQuery) ||
+          (matchedContact && normalizePhoneNumber(matchedContact.phone) === contactPhone)));
+        return nameMatches || phoneMatches;
+      })
+      .sort((left, right) => collator.compare(String(left.name || ''), String(right.name || '')) || String(left.phone || '').localeCompare(String(right.phone || '')));
+
+    if (contactsSyncText) {
+      if (contactsSyncStatus.state === 'error') contactsSyncText.textContent = contactsSyncStatus.message || 'Rehber iznini kontrol et.';
+      else if (contactsSyncStatus.state === 'syncing') contactsSyncText.textContent = 'Telefon rehberi eşitleniyor…';
+      else if (contacts.length) contactsSyncText.textContent = `${contacts.length} kişi · A–Z`;
+      else if (!deviceState.connected) contactsSyncText.textContent = 'Telefon bağlanınca kişi listesi gelir.';
+      else contactsSyncText.textContent = contactsSyncStatus.message || 'Numaralı kişi bulunamadı.';
+    }
+
+    if (!filtered.length) {
+      const empty = document.createElement('div');
+      empty.className = 'contacts-picker-empty';
+      empty.textContent = query && contacts.length ? 'Aramana uygun kişi bulunamadı.'
+        : contactsSyncStatus.state === 'error' ? (contactsSyncStatus.message || 'Kişiler okunamadı.')
+          : 'Kişi listesi telefon bağlanınca burada görünür.';
+      contactsList.appendChild(empty);
+      return;
+    }
+
+    filtered.forEach(contact => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'contact-picker-item';
+      button.setAttribute('role', 'listitem');
+      const avatar = document.createElement('span');
+      avatar.className = 'contact-picker-avatar';
+      avatar.textContent = String(contact.name || '?').trim().split(/\s+/).slice(0, 2).map(part => part[0] || '').join('').toLocaleUpperCase('tr-TR');
+      const copy = document.createElement('span');
+      copy.className = 'contact-picker-copy';
+      const name = document.createElement('strong');
+      name.textContent = contact.name || 'İsimsiz kişi';
+      const phone = document.createElement('small');
+      phone.textContent = contact.phone || '';
+      copy.append(name, phone);
+      const arrow = document.createElement('span');
+      arrow.className = 'contact-picker-arrow';
+      arrow.textContent = '›';
+      button.append(avatar, copy, arrow);
+      button.addEventListener('click', () => startConversation(contact.phone, contact.name));
+      contactsList.appendChild(button);
+    });
   }
 
   function renderMessages() {
@@ -174,7 +308,8 @@ document.addEventListener('DOMContentLoaded', () => {
       threads.get(phone).push(message);
     });
 
-    if (!activeThreadPhone || !threads.has(activeThreadPhone)) activeThreadPhone = threads.keys().next().value || null;
+    if (!activeThreadPhone || (!threads.has(activeThreadPhone) && !activeThreadLabel)) activeThreadPhone = threads.keys().next().value || null;
+    if (activeThreadPhone && !threads.has(activeThreadPhone)) threads.set(activeThreadPhone, []);
     if (threads.size === 0) {
       const text = messageSyncStatus.state === 'error'
         ? messageSyncStatus.message || 'SMS eşitlemesi tamamlanamadı.'
@@ -189,27 +324,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     threads.forEach((thread, phone) => {
-      const latest = thread[0];
+      const latest = thread[0] || null;
+      const contact = findContact(phone);
       const item = document.createElement('button');
       item.type = 'button';
       item.className = `thread-item ${phone === activeThreadPhone ? 'active' : ''}`;
       item.innerHTML = `
         <div class="thread-header">
-          <span class="thread-sender">${escapeHtml(latest.isOutgoing ? phone : (latest.sender || phone))}</span>
-          <span class="thread-time">${escapeHtml(latest.timestamp)}</span>
+          <span class="thread-sender">${escapeHtml(contact?.name || (latest && !latest.isOutgoing ? latest.sender : null) || phone)}</span>
+          <span class="thread-time">${escapeHtml(latest?.timestamp || '')}</span>
         </div>
-        <div class="thread-preview">${escapeHtml(latest.text)}</div>
+        <div class="thread-preview">${escapeHtml(latest?.text || 'Henüz mesaj yok')}</div>
       `;
       item.addEventListener('click', () => {
         activeThreadPhone = phone;
+        activeThreadLabel = null;
         renderMessages();
       });
       threadsList.appendChild(item);
     });
 
     const activeMessages = threads.get(activeThreadPhone) || [];
-    activeChatTitle.textContent = activeMessages.find(message => !message.isOutgoing)?.sender || activeThreadPhone;
+    activeChatTitle.textContent = findContact(activeThreadPhone)?.name || activeMessages.find(message => !message.isOutgoing)?.sender || activeThreadLabel || activeThreadPhone;
     chatStream.replaceChildren();
+    if (!activeMessages.length) {
+      const empty = document.createElement('div');
+      empty.className = 'messages-empty';
+      empty.textContent = 'Bu sohbette henüz mesaj yok. İlk mesajını aşağıdan yaz.';
+      chatStream.appendChild(empty);
+    }
     [...activeMessages].reverse().forEach(message => {
       const bubble = document.createElement('div');
       bubble.className = `sms-bubble ${message.isOutgoing ? 'outgoing' : 'incoming'}`;
@@ -268,6 +411,13 @@ document.addEventListener('DOMContentLoaded', () => {
     sendToServer('SEND_SMS', { phone: activeThreadPhone, text });
     smsInput.value = '';
   }
+  newMessageButton?.addEventListener('click', openNewMessageScreen);
+  document.getElementById('backToMessagesBtn')?.addEventListener('click', () => switchTab('messages'));
+  document.getElementById('openRecipientChatBtn')?.addEventListener('click', () => startConversation(recipientInput?.value));
+  recipientInput?.addEventListener('input', renderContactPicker);
+  recipientInput?.addEventListener('keydown', event => {
+    if (event.key === 'Enter') startConversation(recipientInput.value);
+  });
   syncMessagesButton?.addEventListener('click', () => sendToServer('REQ_SYNC_ALL'));
   sendSmsButton?.addEventListener('click', sendCurrentSms);
   smsInput?.addEventListener('keydown', event => {

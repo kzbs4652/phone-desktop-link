@@ -41,6 +41,8 @@ const pairingAttempts = new Map();
 const pcClients = new Set();
 let connectedPhone = null;
 let deviceState = { connected: false, deviceName: null, batteryLevel: null, isCharging: false, ipAddress: null };
+let contacts = [];
+let contactsSyncStatus = { state: 'idle', message: 'Telefon bağlanınca kişi listesi eşitlenir.', count: 0 };
 function loadMessagesState() {
   try {
     const value = JSON.parse(fs.readFileSync(messagesStatePath, 'utf8'));
@@ -194,6 +196,11 @@ wss.on('connection', (ws, req) => {
       message: 'Telefon bağlandı; mesajlar eşitleniyor.',
       count: messages.length
     };
+    contactsSyncStatus = {
+      ...contactsSyncStatus,
+      state: 'syncing',
+      message: 'Telefon rehberi eşitleniyor.'
+    };
     console.log(`[PhoneLink] Telefon bağlantısı açıldı (${deviceState.ipAddress}).`);
     if (req.phoneLinkPairingToken) {
       ws.send(JSON.stringify({ action: 'PAIRING_COMPLETE', payload: { token: req.phoneLinkPairingToken, deviceId: pairingState.deviceId } }));
@@ -202,6 +209,7 @@ wss.on('connection', (ws, req) => {
     }
     broadcastToPc('PHONE_CONNECTION_CHANGED', deviceState);
     broadcastToPc('MESSAGES_SYNC_STATUS', messageSyncStatus);
+    broadcastToPc('CONTACTS_SYNC_STATUS', contactsSyncStatus);
 
     ws.on('message', data => {
       try {
@@ -234,7 +242,7 @@ wss.on('connection', (ws, req) => {
   pcClients.add(ws);
   ws.send(JSON.stringify({
     action: 'INIT_STATE',
-    payload: { deviceState, messages, messageSyncStatus }
+    payload: { deviceState, messages, messageSyncStatus, contacts, contactsSyncStatus }
   }));
   ws.on('message', data => {
     try {
@@ -257,6 +265,43 @@ function handlePhoneMessage(message) {
       }
       broadcastToPc('DEVICE_STATUS_UPDATED', deviceState);
       break;
+    case 'CONTACTS_SYNCED': {
+      if (!Array.isArray(payload)) break;
+      const uniqueByNumber = new Map();
+      payload.slice(0, 20000).forEach(contact => {
+        const name = String(contact?.name || '').trim().slice(0, 160);
+        const phone = String(contact?.phone || '').trim().slice(0, 64);
+        if (!name || !phone) return;
+        const key = phone.replace(/\D/g, '');
+        if (!key || uniqueByNumber.has(key)) return;
+        uniqueByNumber.set(key, {
+          id: String(contact?.id || key).slice(0, 80),
+          name,
+          phone
+        });
+      });
+      const collator = new Intl.Collator('tr', { sensitivity: 'base', numeric: true });
+      contacts = [...uniqueByNumber.values()].sort((left, right) => collator.compare(left.name, right.name) || left.phone.localeCompare(right.phone));
+      contactsSyncStatus = {
+        state: 'synced',
+        message: contacts.length ? `${contacts.length} kişi hazır.` : 'Telefon rehberinde numaralı kişi bulunamadı.',
+        count: contacts.length
+      };
+      broadcastToPc('CONTACTS_UPDATED', contacts);
+      broadcastToPc('CONTACTS_SYNC_STATUS', contactsSyncStatus);
+      break;
+    }
+    case 'CONTACTS_SYNC_STATUS': {
+      const state = ['syncing', 'error'].includes(payload.state) ? payload.state : null;
+      if (!state) break;
+      contactsSyncStatus = {
+        state,
+        message: String(payload.message || (state === 'syncing' ? 'Telefon rehberi eşitleniyor.' : 'Rehber iznini kontrol edip yeniden eşitle.')).slice(0, 240),
+        count: contacts.length
+      };
+      broadcastToPc('CONTACTS_SYNC_STATUS', contactsSyncStatus);
+      break;
+    }
     case 'SMS_RECEIVED': {
       const text = String(payload.text || '');
       const code = text.match(/\b\d{4,8}\b/);
@@ -372,7 +417,7 @@ function sendSmsFromPc(phone, text) {
 }
 
 app.get('/api/state', requireLocalRequest, (req, res) => {
-  res.json({ deviceState, messages, messageSyncStatus });
+  res.json({ deviceState, messages, messageSyncStatus, contacts, contactsSyncStatus });
 });
 
 app.get('/api/connection-info', requireLocalRequest, (req, res) => {

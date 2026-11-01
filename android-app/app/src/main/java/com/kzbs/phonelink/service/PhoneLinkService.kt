@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -14,11 +15,13 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.kzbs.phonelink.BuildConfig
 import com.kzbs.phonelink.MainActivity
 import com.kzbs.phonelink.R
+import com.kzbs.phonelink.manager.ContactsHelper
 import com.kzbs.phonelink.manager.SmsHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -81,13 +84,28 @@ class PhoneLinkService : Service() {
     private var isShuttingDown = false
     private var discoveryJob: Job? = null
     private var dataSyncJob: Job? = null
+    private var batteryUpdateJob: Job? = null
+    private var batteryReceiverRegistered = false
     private var multicastLock: WifiManager.MulticastLock? = null
+
+    private val batteryChangedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_BATTERY_CHANGED && isConnected) sendHelloHandshake()
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
         instance = this
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification("Bağlantı başlatılmadı"))
+        ContextCompat.registerReceiver(
+            this,
+            batteryChangedReceiver,
+            IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        batteryReceiverRegistered = true
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -331,6 +349,7 @@ class PhoneLinkService : Service() {
                 broadcastStatus("Bilgisayara bağlı: $host", true, host)
                 updateNotification("Bilgisayara bağlı ($host)")
                 sendHelloHandshake()
+                startBatteryUpdates()
                 syncPhoneData()
             }
 
@@ -341,6 +360,8 @@ class PhoneLinkService : Service() {
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 this@PhoneLinkService.isConnected = false
                 this@PhoneLinkService.webSocket = null
+                batteryUpdateJob?.cancel()
+                batteryUpdateJob = null
                 releaseMulticastLock()
                 if (!isShuttingDown) {
                     broadcastStatus("Bilgisayar bağlantısı kesildi", false, host)
@@ -352,6 +373,8 @@ class PhoneLinkService : Service() {
             override fun onFailure(webSocket: WebSocket, error: Throwable, response: Response?) {
                 this@PhoneLinkService.isConnected = false
                 this@PhoneLinkService.webSocket = null
+                batteryUpdateJob?.cancel()
+                batteryUpdateJob = null
                 releaseMulticastLock()
                 val message = if (response?.code == 403 && tokenAuth) {
                     "Telefon eşleşmesi bilgisayarda sıfırlandı. Yeni QR koduyla tekrar eşleştir."
@@ -436,6 +459,16 @@ class PhoneLinkService : Service() {
         sendToPc(hello.toString())
     }
 
+    private fun startBatteryUpdates() {
+        batteryUpdateJob?.cancel()
+        batteryUpdateJob = scope.launch {
+            while (isActive && isConnected) {
+                delay(30_000L)
+                if (isConnected) sendHelloHandshake()
+            }
+        }
+    }
+
     private fun handleIncomingPcCommand(rawJson: String) {
         try {
             val json = gson.fromJson(rawJson, JsonObject::class.java)
@@ -484,6 +517,21 @@ class PhoneLinkService : Service() {
     private fun syncPhoneData() {
         if (dataSyncJob?.isActive == true) return
         dataSyncJob = scope.launch {
+            val contactsResult = ContactsHelper.fetchContacts(this@PhoneLinkService)
+            if (contactsResult.isSuccess) {
+                sendSyncPayload("CONTACTS_SYNCED", gson.toJsonTree(contactsResult.contacts.orEmpty()))
+            } else {
+                val status = JsonObject().apply {
+                    addProperty("state", "error")
+                    addProperty("message", contactsResult.errorMessage ?: "Kişi listesi okunamadı.")
+                }
+                val event = JsonObject().apply {
+                    addProperty("action", "CONTACTS_SYNC_STATUS")
+                    add("payload", status)
+                }
+                sendToPc(event.toString())
+            }
+
             sendSmsSyncStatus("syncing", "SMS’ler telefondan okunuyor…")
             try {
                 val result = SmsHelper.fetchInbox(this@PhoneLinkService)
@@ -532,6 +580,11 @@ class PhoneLinkService : Service() {
     override fun onDestroy() {
         isShuttingDown = true
         discoveryJob?.cancel()
+        batteryUpdateJob?.cancel()
+        if (batteryReceiverRegistered) {
+            unregisterReceiver(batteryChangedReceiver)
+            batteryReceiverRegistered = false
+        }
         if (isConnected) broadcastStatus("Bilgisayar bağlantısı kesildi", false, pcHost)
         releaseMulticastLock()
         webSocket?.close(1000, "Kullanıcı bağlantıyı kesti")

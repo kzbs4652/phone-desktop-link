@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KZBS PhoneLink v1.0.8</title>
+  <title>KZBS PhoneLink v1.0.9</title>
   <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -21,7 +21,7 @@
         <img src="assets/logo.svg" alt="KZBS PhoneLink Logo" class="brand-logo">
         <div>
           <span class="brand-title">KZBS PhoneLink</span>
-          <span class="brand-badge">v1.0.8</span>
+          <span class="brand-badge">v1.0.9</span>
         </div>
       </div>
 
@@ -73,6 +73,9 @@
           <span>Mesajlar</span>
           <div class="message-sync-tools">
             <span id="messageSyncStatus" class="message-sync-status">Telefon bağlanınca mesajlar eşitlenir.</span>
+            <button id="newMessageBtn" class="new-message-button" type="button" title="Yeni mesaj" aria-label="Yeni mesaj">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
             <button id="syncMessagesBtn" class="sync-messages-button" type="button">Yeniden eşitle</button>
           </div>
         </h2>
@@ -99,6 +102,29 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <section id="view-new-message" class="view-slide" aria-hidden="true">
+        <div class="new-message-heading">
+          <button id="backToMessagesBtn" class="new-message-back" type="button" aria-label="Mesajlara dön">←</button>
+          <div>
+            <h2>Yeni mesaj</h2>
+            <p>Kişi seç veya telefon numarasını yaz.</p>
+          </div>
+        </div>
+        <div class="recipient-card">
+          <label for="recipientInput">Alıcı</label>
+          <div class="recipient-entry">
+            <input id="recipientInput" type="tel" inputmode="tel" autocomplete="tel" placeholder="Telefon numarası">
+            <button id="openRecipientChatBtn" type="button">Sohbeti aç</button>
+          </div>
+          <p id="recipientError" class="recipient-error" aria-live="polite"></p>
+        </div>
+        <div class="contacts-picker-heading">
+          <h3>Kişiler</h3>
+          <span id="contactsSyncText">Telefon rehberi bekleniyor…</span>
+        </div>
+        <div id="newMessageContacts" class="contacts-picker-list" role="list" aria-label="Kişiler"></div>
       </section>
 
 
@@ -132,13 +158,14 @@
             <h3 style="margin-bottom: 16px; font-size: 18px; color: var(--neon-cyan);">🛡️ Güvenlik & İzinler</h3>
             <div style="display: flex; flex-direction: column; gap: 12px; font-size: 14px;">
               <div>Telefon bağlanınca SMS kutusu eşitlenir.</div>
-              <div>SMS okumak ve göndermek için telefonda SMS izinleri gerekir.</div>
-              <div>Bu uygulama yalnızca SMS eşitler ve gönderir.</div>
+              <div>SMS okumak ve göndermek için SMS izni gerekir.</div>
+              <div>Rehber izni, yeni mesaj ekranında kişi seçmek için kullanılır.</div>
+              <div>Uygulamada arama özelliği yoktur; telefonun pil seviyesi düzenli güncellenir.</div>
             </div>
 
             <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--glass-border);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <span style="font-size: 14px; font-weight: 600;">Sürüm: v1.0.8</span>
+                <span style="font-size: 14px; font-weight: 600;">Sürüm: v1.0.9</span>
                 <button id="btnCheckUpdateManual" style="background: rgba(0, 242, 254, 0.15); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer;">
                   🔄 Güncellemeleri Denetle
                 </button>

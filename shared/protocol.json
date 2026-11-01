@@ -1,5 +1,5 @@
 {
-  "version": "1.0.8",
+  "version": "1.0.9",
   "app_name": "KZBS PhoneLink",
   "discovery": {
     "transport": "UDP broadcast",
@@ -22,7 +22,9 @@
     "SMS_RECEIVED",
     "SMS_SYNC_STATUS",
     "SMS_SEND_RESULT",
-    "SMS_SYNCED"
+    "SMS_SYNCED",
+    "CONTACTS_SYNCED",
+    "CONTACTS_SYNC_STATUS"
   ],
   "desktop_events": [
     "INIT_STATE",
@@ -32,6 +34,8 @@
     "NEW_SMS",
     "MESSAGES_UPDATED",
     "MESSAGES_SYNC_STATUS",
+    "CONTACTS_UPDATED",
+    "CONTACTS_SYNC_STATUS",
     "APP_ERROR"
   ]
 }

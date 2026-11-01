@@ -47,7 +47,8 @@ class MainActivity : AppCompatActivity() {
     private val requiredPermissions = mutableListOf(
         Manifest.permission.RECEIVE_SMS,
         Manifest.permission.READ_SMS,
-        Manifest.permission.SEND_SMS
+        Manifest.permission.SEND_SMS,
+        Manifest.permission.READ_CONTACTS
     )
 
     private lateinit var status: TextView
@@ -169,7 +170,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnPermissions).setOnClickListener {
             val missing = missingPermissions()
             if (missing.isEmpty()) {
-                Toast.makeText(this, "Telefon özellikleri için gerekli izinler verilmiş.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "SMS ve kişi listesi izinleri verilmiş.", Toast.LENGTH_SHORT).show()
             } else {
                 pendingConnection = null
                 ActivityCompat.requestPermissions(this, missing.toTypedArray(), PERMISSION_REQUEST_CODE)
@@ -189,7 +190,7 @@ class MainActivity : AppCompatActivity() {
         val setupPrefs = getSharedPreferences("setup", MODE_PRIVATE)
         if (missingPermissions().isNotEmpty() && !setupPrefs.getBoolean("permissionsPrompted", false)) {
             setupPrefs.edit().putBoolean("permissionsPrompted", true).apply()
-            appendLog("İlk kullanım için SMS izinleri istenecek.")
+            appendLog("İlk kullanım için SMS ve rehber izinleri istenecek.")
             ActivityCompat.requestPermissions(this, missingPermissions().toTypedArray(), PERMISSION_REQUEST_CODE)
         }
         val pairingPrefs = getSharedPreferences(PhoneLinkService.PAIRING_PREFS, MODE_PRIVATE)
@@ -343,8 +344,8 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode != PERMISSION_REQUEST_CODE) return
         val denied = permissions.indices.filter { index -> grantResults.getOrNull(index) != PackageManager.PERMISSION_GRANTED }
-        if (denied.isNotEmpty()) appendLog("SMS izinleri verilmedi; SMS eşitleme ve gönderme kısıtlı olabilir.")
-        else appendLog("SMS izinleri verildi.")
+        if (denied.isNotEmpty()) appendLog("Bazı SMS veya rehber izinleri verilmedi; ilgili özellikler kısıtlı olabilir.")
+        else appendLog("SMS ve rehber izinleri verildi.")
         pendingConnection?.let { (host, code) ->
             pendingConnection = null
             connect(host, code)

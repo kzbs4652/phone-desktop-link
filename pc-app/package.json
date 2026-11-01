@@ -1,8 +1,8 @@
 {
   "name": "kzbs-phonelink",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "author": "KZBS",
-  "description": "KZBS PhoneLink v1.0.8 - Windows and Android SMS bridge",
+  "description": "KZBS PhoneLink v1.0.9 - Windows and Android SMS bridge",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
