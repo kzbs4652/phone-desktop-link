@@ -1,159 +1,98 @@
-// KZBS PhoneLink v1.0.7 Client Controller
 document.addEventListener('DOMContentLoaded', () => {
-  // --- State ---
-  let currentTab = 'keypad';
+  let currentTab = 'messages';
   let deviceState = { connected: false };
-  let activeCall = null;
-  let contacts = [];
-  let callLogs = [];
   let messages = [];
   let messageSyncStatus = { state: 'idle', message: 'Telefon bağlanınca mesajlar eşitlenir.', count: 0, lastSyncedAt: null };
   let activeThreadPhone = null;
+  let socket = null;
+  let latestPcVersion = null;
+  let lastNotifiedUpdateVersion = null;
+  let deferredUpdateVersion = null;
 
-  // --- DOM Elements ---
   const dockPill = document.getElementById('dockPill');
-  const dockItems = document.querySelectorAll('.dock-item');
-  const viewSlides = document.querySelectorAll('.view-slide');
-  const phoneDisplay = document.getElementById('phoneDisplay');
-  const contactsList = document.getElementById('contactsList');
-  const searchInput = document.getElementById('contactSearch');
-  const recentsList = document.getElementById('recentsList');
+  const dockItems = [...document.querySelectorAll('.dock-item')];
+  const viewSlides = [...document.querySelectorAll('.view-slide')];
   const threadsList = document.getElementById('threadsList');
   const chatStream = document.getElementById('chatStream');
   const activeChatTitle = document.getElementById('activeChatTitle');
   const smsInput = document.getElementById('smsInput');
-  const incallOverlay = document.getElementById('incallOverlay');
-  const incallName = document.getElementById('incallName');
-  const incallStatus = document.getElementById('incallStatus');
-  const incallTimer = document.getElementById('incallTimer');
+  const messageStatus = document.getElementById('messageSyncStatus');
+  const syncMessagesButton = document.getElementById('syncMessagesBtn');
+  const sendSmsButton = document.getElementById('sendSmsBtn');
   const toast = document.getElementById('toastNotice');
   const toastText = document.getElementById('toastText');
 
-  // --- WebSocket Connection ---
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${wsProtocol}//${window.location.host}/client`;
-  let socket = null;
 
   function connectSocket() {
     socket = new WebSocket(wsUrl);
-
-    socket.onopen = () => {
-      console.log('✅ Connected to KZBS PhoneLink Desktop Server');
-      refreshPairingInfo();
-    };
-
-    socket.onmessage = (event) => {
+    socket.onopen = refreshPairingInfo;
+    socket.onmessage = event => {
       try {
-        const data = JSON.parse(event.data);
-        handleServerEvent(data);
-      } catch (e) {
-        console.error('Socket message parse error:', e);
+        const { action, payload } = JSON.parse(event.data);
+        handleServerEvent(action, payload);
+      } catch (error) {
+        console.error('PhoneLink mesajı okunamadı:', error);
       }
     };
-
-    socket.onclose = () => {
-      console.warn('Socket closed. Reconnecting in 2s...');
-      setTimeout(connectSocket, 2000);
-    };
+    socket.onclose = () => setTimeout(connectSocket, 2000);
   }
-  connectSocket();
 
   function sendToServer(action, payload = {}) {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ action, payload }));
-    }
+    if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ action, payload }));
+    else showToast('Bilgisayar hizmeti yeniden bağlanıyor. Birazdan tekrar dene.');
   }
 
-  // --- Handle Server Events ---
-  function handleServerEvent(msg) {
-    const { action, payload } = msg;
-
+  function handleServerEvent(action, payload) {
     switch (action) {
       case 'INIT_STATE':
-        deviceState = payload.deviceState || {};
-        activeCall = payload.activeCall;
-        contacts = payload.contacts || [];
-        callLogs = payload.callLogs || [];
-        messages = payload.messages || [];
-        messageSyncStatus = payload.messageSyncStatus || messageSyncStatus;
-        updateDeviceStatusUI();
-        renderContacts(contacts);
-        renderCallLogs(callLogs);
-        renderMessageSyncStatus();
-        renderMessages();
-        renderActiveCall();
+        deviceState = payload?.deviceState || { connected: false };
+        messages = Array.isArray(payload?.messages) ? payload.messages : [];
+        messageSyncStatus = payload?.messageSyncStatus || messageSyncStatus;
+        renderAll();
         break;
-
-      case 'ACTIVE_CALL_CHANGED':
-        activeCall = payload;
-        renderActiveCall();
-        break;
-
-      case 'CALL_DURATION_TICK':
-        if (activeCall) {
-          activeCall.duration = payload.duration;
-          const mins = String(Math.floor(payload.duration / 60)).padStart(2, '0');
-          const secs = String(payload.duration % 60).padStart(2, '0');
-          incallTimer.textContent = `${mins}:${secs}`;
-        }
-        break;
-
       case 'NEW_SMS':
-        if (!messages.some(message => message.id === payload.id)) messages.unshift(payload);
+        if (payload && !messages.some(message => message.id === payload.id)) messages.unshift(payload);
         messageSyncStatus = { ...messageSyncStatus, count: messages.length };
-        renderMessageSyncStatus();
-        renderMessages();
-        showToast(`💬 SMS: ${payload.sender} - ${String(payload.text || '').substring(0, 36)}...`);
-        if (payload.code) {
-          showToast(`🔑 Doğrulama Kodu: ${payload.code}`);
-        }
+        renderAll();
+        showToast(`Yeni SMS: ${payload?.sender || payload?.phone || 'Bilinmeyen numara'}`);
+        if (payload?.code) showToast(`Doğrulama kodu: ${payload.code}`);
         break;
-
-      case 'CALL_LOGS_UPDATED':
-        callLogs = payload;
-        renderCallLogs(callLogs);
-        break;
-
-      case 'CONTACTS_UPDATED':
-        contacts = payload;
-        renderContacts(contacts);
-        break;
-
       case 'MESSAGES_UPDATED':
         messages = Array.isArray(payload) ? payload : [];
-        activeThreadPhone = null;
+        if (activeThreadPhone && !messages.some(message => (message.phone || message.sender) === activeThreadPhone)) activeThreadPhone = null;
         messageSyncStatus = { ...messageSyncStatus, count: messages.length };
-        renderMessageSyncStatus();
-        renderMessages();
+        renderAll();
         break;
-
       case 'MESSAGES_SYNC_STATUS':
         messageSyncStatus = payload || messageSyncStatus;
-        renderMessageSyncStatus();
-        renderMessages();
+        renderAll();
         break;
-
       case 'APP_ERROR':
-        showToast(payload?.message || 'Telefon işlemi tamamlanamadı.');
+        showToast(payload?.message || 'İşlem tamamlanamadı.');
         break;
-
       case 'DEVICE_STATUS_UPDATED':
       case 'PHONE_CONNECTION_CHANGED':
         deviceState = { ...deviceState, ...payload };
-        updateDeviceStatusUI();
+        renderDeviceStatus();
         renderMessageSyncStatus();
         refreshPairingInfo();
         break;
     }
   }
 
-  // --- UI Toast Notification ---
-  function showToast(msg) {
-    toastText.textContent = msg;
+  function renderAll() {
+    renderDeviceStatus();
+    renderMessageSyncStatus();
+    renderMessages();
+  }
+
+  function showToast(message) {
+    if (!toast || !toastText) return;
+    toastText.textContent = message;
     toast.classList.add('show');
-    setTimeout(() => {
-      toast.classList.remove('show');
-    }, 4500);
+    setTimeout(() => toast.classList.remove('show'), 4500);
   }
 
   function escapeHtml(value) {
@@ -170,15 +109,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const pairingStatus = document.getElementById('pairingStatus');
         const pairingAddresses = document.getElementById('pairingAddresses');
         const pairingCode = document.getElementById('pairingCode');
-        if (pairingCode) pairingCode.textContent = info.pairingCode || (info.paired ? 'EŞLEŞTİ' : '------');
         const pairingQr = document.getElementById('pairingQr');
         const pairingCodeLabel = document.getElementById('pairingCodeLabel');
         const pairingButton = document.getElementById('btnOpenPairing');
+
+        if (pairingCode) pairingCode.textContent = info.pairingCode || (info.paired ? 'EŞLEŞTİ' : '------');
         if (pairingCodeLabel) pairingCodeLabel.textContent = info.pairingOpen ? 'Telefondaki uygulamayla tara' : 'Eşleştirme durumu';
         if (pairingButton) pairingButton.textContent = info.pairingOpen ? 'Eşleştirme açık' : (info.paired ? 'Başka telefon eşleştir' : 'Eşleştirme kodu göster');
         if (pairingQr) {
           pairingQr.style.display = info.pairingOpen ? 'block' : 'none';
-          if (info.pairingOpen) fetch('/api/pairing-qr', { cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(qr => { if (qr?.dataUrl) pairingQr.src = qr.dataUrl; }).catch(() => {});
+          if (info.pairingOpen) {
+            fetch('/api/pairing-qr', { cache: 'no-store' })
+              .then(response => response.ok ? response.json() : null)
+              .then(qr => { if (qr?.dataUrl) pairingQr.src = qr.dataUrl; })
+              .catch(() => {});
+          }
         }
         if (pairingAddresses) {
           pairingAddresses.textContent = info.addresses?.length
@@ -190,232 +135,63 @@ document.addEventListener('DOMContentLoaded', () => {
           pairingStatus.textContent = info.connected
             ? `${info.deviceName || 'Telefon'} bağlı. Eşleştirme kaydedildi.`
             : info.paired
-              ? 'Telefon bir kez eşleştirildi. Aynı Wi-Fi ağına gelince kendiliğinden bağlanır.'
-              : 'Telefon uygulamasında bu kodu gir veya QR kodunu tara.';
+              ? 'Eşleştirme kayıtlı. Telefon aynı Wi-Fi ağına geldiğinde otomatik bağlanır.'
+              : 'İlk kurulum için Android uygulamasıyla eşleştirme kodunu tara.';
         }
       })
       .catch(() => {});
   }
 
-  // --- Liquid Glass Tab Slider & Floating Dock Navigation ---
-  const tabPositions = {
-    'recents': { index: 0, offset: 10 },
-    'contacts': { index: 1, offset: 108 },
-    'keypad': { index: 2, offset: 206 },
-    'messages': { index: 3, offset: 304 },
-    'status': { index: 4, offset: 402 }
-  };
-
+  const tabPositions = { messages: { index: 0, offset: 10 }, status: { index: 1, offset: 108 } };
   function switchTab(targetTab) {
-    if (currentTab === targetTab) return;
-    window.phoneAudio.playClick();
-
-    const currentIdx = tabPositions[currentTab]?.index || 0;
-    const targetIdx = tabPositions[targetTab]?.index || 0;
-
-    dockItems.forEach(item => {
-      if (item.dataset.tab === targetTab) {
-        item.classList.add('active');
-      } else {
-        item.classList.remove('active');
-      }
-    });
-
-    // Move sliding pill indicator
-    const pos = tabPositions[targetTab];
-    if (pos && dockPill) {
-      dockPill.style.left = `${pos.offset}px`;
-    }
-
-    // Slide Views with iOS transition direction
+    if (!tabPositions[targetTab] || currentTab === targetTab) return;
+    const currentIndex = tabPositions[currentTab]?.index ?? 0;
+    const nextIndex = tabPositions[targetTab].index;
+    dockItems.forEach(item => item.classList.toggle('active', item.dataset.tab === targetTab));
+    if (dockPill) dockPill.style.left = `${tabPositions[targetTab].offset}px`;
     viewSlides.forEach(slide => {
-      if (slide.id === `view-${targetTab}`) {
-        slide.classList.remove('slide-left');
-        slide.classList.add('active');
-      } else {
-        slide.classList.remove('active');
-        if (targetIdx > currentIdx) {
-          slide.classList.add('slide-left');
-        } else {
-          slide.classList.remove('slide-left');
-        }
-      }
+      const active = slide.id === `view-${targetTab}`;
+      slide.classList.toggle('active', active);
+      slide.classList.toggle('slide-left', !active && nextIndex > currentIndex);
     });
-
     currentTab = targetTab;
   }
+  dockItems.forEach(item => item.addEventListener('click', () => switchTab(item.dataset.tab)));
+  if (dockPill) dockPill.style.left = '10px';
 
-  dockItems.forEach(item => {
-    item.addEventListener('click', () => {
-      switchTab(item.dataset.tab);
-    });
-  });
-
-  // Default initial pill position
-  if (dockPill) {
-    dockPill.style.left = '206px'; // Center on Keypad
+  function getThreadPhone(message) {
+    return String(message.phone || message.sender || '');
   }
 
-  // --- Keypad & Dialer Logic ---
-  const keyBtns = document.querySelectorAll('.key-btn');
-  keyBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const digit = btn.dataset.digit;
-      window.phoneAudio.playTone(digit);
-      phoneDisplay.value += digit;
-    });
-  });
-
-  document.getElementById('backspaceBtn')?.addEventListener('click', () => {
-    window.phoneAudio.playClick();
-    phoneDisplay.value = phoneDisplay.value.slice(0, -1);
-  });
-
-  document.getElementById('startCallBtn')?.addEventListener('click', () => {
-    const number = phoneDisplay.value.trim();
-    if (!number) {
-      showToast('⚠️ Lütfen bir telefon numarası tuşlayın.');
-      return;
-    }
-    sendToServer('DIAL_CALL', { number });
-  });
-
-  // --- Contacts Management ---
-  function renderContacts(data) {
-    if (!contactsList) return;
-    contactsList.innerHTML = '';
-
-    if (data.length === 0) {
-      contactsList.innerHTML = `<div style="text-align:center; padding: 40px; color: #8e8e93;">${deviceState.connected ? 'Telefonda kişi bulunamadı.' : 'Kişileri görmek için Android PhoneLink uygulamasından telefonunu bağla.'}</div>`;
-      return;
-    }
-
-    data.forEach(c => {
-      const card = document.createElement('div');
-      card.className = 'contact-card';
-      card.innerHTML = `
-        <div class="contact-info">
-          <div class="contact-avatar">${escapeHtml(c.avatar || '👤')}</div>
-          <div>
-            <div class="contact-name">${escapeHtml(c.name)}</div>
-            <div class="contact-phone">${escapeHtml(c.phone)}</div>
-          </div>
-        </div>
-        <div class="contact-actions">
-          <button class="action-btn-sm call-action" title="Ara" data-phone="${escapeHtml(c.phone)}" data-name="${escapeHtml(c.name)}">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#30d158"><path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1-.4-1.1-.6-2.3-.6-3.5 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z"/></svg>
-          </button>
-          <button class="action-btn-sm sms-action" title="SMS Gönder" data-phone="${escapeHtml(c.phone)}" data-name="${escapeHtml(c.name)}">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#4facfe"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
-          </button>
-        </div>
-      `;
-
-      card.querySelector('.call-action').addEventListener('click', (e) => {
-        e.stopPropagation();
-        sendToServer('DIAL_CALL', { number: c.phone, contactName: c.name });
-      });
-
-      card.querySelector('.sms-action').addEventListener('click', (e) => {
-        e.stopPropagation();
-        activeThreadPhone = c.phone;
-        switchTab('messages');
-        renderMessages();
-      });
-
-      contactsList.appendChild(card);
-    });
-  }
-
-  searchInput?.addEventListener('input', (e) => {
-    const q = e.target.value.toLowerCase();
-    const filtered = contacts.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q));
-    renderContacts(filtered);
-  });
-
-  // --- Recents / Call Logs ---
-  function renderCallLogs(data) {
-    if (!recentsList) return;
-    recentsList.innerHTML = '';
-
-    if (data.length === 0) {
-      recentsList.innerHTML = `<div style="text-align:center; padding: 40px; color: #8e8e93;">${deviceState.connected ? 'Telefonda arama geçmişi bulunamadı.' : 'Arama geçmişini görmek için telefonunu bağla.'}</div>`;
-      return;
-    }
-
-    data.forEach(log => {
-      const item = document.createElement('div');
-      item.className = 'call-log-item';
-      
-      let typeIcon = '📞';
-      let typeClass = 'type-incoming';
-      let typeLabel = 'Gelen Arama';
-      if (log.type === 'missed') {
-        typeIcon = '✕';
-        typeClass = 'type-missed';
-        typeLabel = 'Cevapsız Arama';
-      } else if (log.type === 'outgoing') {
-        typeIcon = '↗';
-        typeClass = 'type-outgoing';
-        typeLabel = 'Giden Arama';
-      }
-
-      item.innerHTML = `
-        <div class="log-left">
-          <div class="log-type-icon ${typeClass}">${typeIcon}</div>
-          <div>
-            <div style="font-weight: 600; font-size: 15px; margin-bottom: 2px;">${escapeHtml(log.name)}</div>
-            <div class="log-meta">${typeLabel} • ${escapeHtml(log.phone)}</div>
-          </div>
-        </div>
-        <div style="text-align: right;">
-          <div style="font-size: 13px; font-weight: 500;">${escapeHtml(log.time)}</div>
-          <div class="log-meta">${escapeHtml(log.duration || '')}</div>
-        </div>
-      `;
-
-      item.addEventListener('click', () => {
-        sendToServer('DIAL_CALL', { number: log.phone, contactName: log.name });
-      });
-
-      recentsList.appendChild(item);
-    });
-  }
-
-  // --- Messages & 2FA Codes ---
   function renderMessages() {
-    if (!threadsList || !chatStream) return;
-    threadsList.innerHTML = '';
-
-    // Group by sender / phone
-    const threadsMap = new Map();
-    messages.forEach(m => {
-      const key = m.phone || m.sender;
-      if (!threadsMap.has(key)) {
-        threadsMap.set(key, []);
-      }
-      threadsMap.get(key).push(m);
+    if (!threadsList || !chatStream || !activeChatTitle) return;
+    threadsList.replaceChildren();
+    const threads = new Map();
+    messages.forEach(message => {
+      const phone = getThreadPhone(message);
+      if (!phone) return;
+      if (!threads.has(phone)) threads.set(phone, []);
+      threads.get(phone).push(message);
     });
 
-    if (!activeThreadPhone && threadsMap.size > 0) {
-      activeThreadPhone = threadsMap.keys().next().value;
-    }
-
-    if (threadsMap.size === 0) {
-      const emptyMessage = messageSyncStatus.state === 'error'
+    if (!activeThreadPhone || !threads.has(activeThreadPhone)) activeThreadPhone = threads.keys().next().value || null;
+    if (threads.size === 0) {
+      const text = messageSyncStatus.state === 'error'
         ? messageSyncStatus.message || 'SMS eşitlemesi tamamlanamadı.'
         : messageSyncStatus.state === 'syncing'
           ? 'SMS’ler telefondan eşitleniyor…'
           : deviceState.connected ? 'Telefonda mesaj bulunamadı.' : 'Mesajları görmek için telefonunu bağla.';
-      threadsList.innerHTML = `<div style="text-align:center; padding: 24px 12px; color: #8e8e93;">${escapeHtml(emptyMessage)}</div>`;
-      chatStream.innerHTML = `<div style="text-align:center; padding: 40px; color: #8e8e93;">${escapeHtml(emptyMessage)}</div>`;
+      threadsList.innerHTML = `<div class="messages-empty">${escapeHtml(text)}</div>`;
+      chatStream.innerHTML = `<div class="messages-empty">${escapeHtml(text)}</div>`;
       activeChatTitle.textContent = 'Mesajlar';
+      updateMessageActions();
       return;
     }
 
-    threadsMap.forEach((msgs, phone) => {
-      const latest = msgs[0];
-      const item = document.createElement('div');
+    threads.forEach((thread, phone) => {
+      const latest = thread[0];
+      const item = document.createElement('button');
+      item.type = 'button';
       item.className = `thread-item ${phone === activeThreadPhone ? 'active' : ''}`;
       item.innerHTML = `
         <div class="thread-header">
@@ -424,60 +200,39 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="thread-preview">${escapeHtml(latest.text)}</div>
       `;
-
       item.addEventListener('click', () => {
         activeThreadPhone = phone;
         renderMessages();
       });
-
       threadsList.appendChild(item);
     });
 
-    // Render active chat stream
-    chatStream.innerHTML = '';
-    if (activeThreadPhone) {
-      const activeMsgs = threadsMap.get(activeThreadPhone) || [];
-      activeChatTitle.textContent = activeMsgs.find(message => !message.isOutgoing)?.sender || activeThreadPhone;
-
-      // Reverse so oldest at top
-      [...activeMsgs].reverse().forEach(sms => {
-        const bubble = document.createElement('div');
-        bubble.className = `sms-bubble ${sms.isOutgoing ? 'outgoing' : 'incoming'}`;
-        
-        let html = `<div>${escapeHtml(sms.text)}</div>`;
-        if (sms.code) {
-          html += `
-            <div class="code-badge-box">
-              <span class="code-value">${escapeHtml(sms.code)}</span>
-              <button class="copy-code-btn" data-code="${escapeHtml(sms.code)}">Kodu Kopyala 📋</button>
-            </div>
-          `;
-        }
-        bubble.innerHTML = html;
-
-        bubble.querySelector('.copy-code-btn')?.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const code = e.target.dataset.code;
-          navigator.clipboard.writeText(code);
-          e.target.textContent = 'Kopyalandı! ✅';
-          showToast(`📋 Doğrulama Kodu Kopyalandı: ${code}`);
-          setTimeout(() => {
-            e.target.textContent = 'Kodu Kopyala 📋';
-          }, 2500);
-        });
-
-        chatStream.appendChild(bubble);
+    const activeMessages = threads.get(activeThreadPhone) || [];
+    activeChatTitle.textContent = activeMessages.find(message => !message.isOutgoing)?.sender || activeThreadPhone;
+    chatStream.replaceChildren();
+    [...activeMessages].reverse().forEach(message => {
+      const bubble = document.createElement('div');
+      bubble.className = `sms-bubble ${message.isOutgoing ? 'outgoing' : 'incoming'}`;
+      let content = `<div>${escapeHtml(message.text)}</div>`;
+      if (message.code) {
+        content += `<div class="code-badge-box"><span class="code-value">${escapeHtml(message.code)}</span><button class="copy-code-btn" data-code="${escapeHtml(message.code)}">Kodu Kopyala 📋</button></div>`;
+      }
+      bubble.innerHTML = content;
+      bubble.querySelector('.copy-code-btn')?.addEventListener('click', event => {
+        event.stopPropagation();
+        navigator.clipboard.writeText(event.currentTarget.dataset.code)
+          .then(() => showToast('Kod kopyalandı.'))
+          .catch(() => showToast('Kod kopyalanamadı.'));
       });
-      chatStream.scrollTop = chatStream.scrollHeight;
-    }
+      chatStream.appendChild(bubble);
+    });
+    updateMessageActions();
   }
 
   function renderMessageSyncStatus() {
-    const status = document.getElementById('messageSyncStatus');
-    const button = document.getElementById('syncMessagesBtn');
-    if (!status) return;
+    if (!messageStatus) return;
+    const count = Number(messageSyncStatus.count ?? messages.length);
     const state = messageSyncStatus.state || 'idle';
-    const count = Number(messageSyncStatus.count ?? messages.length) || 0;
     const labels = {
       idle: messageSyncStatus.message || 'Telefon bağlanınca mesajlar eşitlenir.',
       cached: `${count} mesaj bu bilgisayarda kayıtlı${deviceState.connected ? '' : ' · telefon bağlı değil'}`,
@@ -489,111 +244,38 @@ document.addEventListener('DOMContentLoaded', () => {
       error: messageSyncStatus.message || 'SMS eşitlemesi tamamlanamadı.',
       storage_error: messageSyncStatus.message || 'Mesajlar bu bilgisayara kaydedilemedi.'
     };
-    status.textContent = labels[state] || messageSyncStatus.message || `${count} mesaj`;
-    status.dataset.state = state;
-    if (button) button.disabled = !deviceState.connected || state === 'syncing';
+    messageStatus.textContent = labels[state] || messageSyncStatus.message || `${count} mesaj`;
+    messageStatus.dataset.state = state;
+    if (syncMessagesButton) syncMessagesButton.disabled = !deviceState.connected || state === 'syncing';
   }
 
-  document.getElementById('syncMessagesBtn')?.addEventListener('click', () => {
-    sendToServer('REQ_SYNC_ALL');
-  });
+  function updateMessageActions() {
+    if (smsInput) smsInput.disabled = !deviceState.connected || !activeThreadPhone;
+    if (sendSmsButton) sendSmsButton.disabled = !deviceState.connected || !activeThreadPhone;
+  }
 
-  // Send SMS button
-  document.getElementById('sendSmsBtn')?.addEventListener('click', () => {
-    const text = smsInput.value.trim();
-    if (!text || !activeThreadPhone) return;
+  function sendCurrentSms() {
+    const text = smsInput?.value.trim();
+    if (!text) return;
+    if (!deviceState.connected) {
+      showToast('Önce telefonu PhoneLink’e bağla.');
+      return;
+    }
+    if (!activeThreadPhone) {
+      showToast('Önce mesaj göndereceğin konuşmayı seç.');
+      return;
+    }
     sendToServer('SEND_SMS', { phone: activeThreadPhone, text });
     smsInput.value = '';
-  });
-
-  smsInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      document.getElementById('sendSmsBtn')?.click();
-    }
-  });
-
-  // --- In-Call Overlay HUD ---
-  function renderActiveCall() {
-    if (!incallOverlay) return;
-
-    if (activeCall) {
-      incallName.textContent = activeCall.contactName || activeCall.number;
-      const stateLabels = { ACTIVE: 'GÖRÜŞMEDE', DIALING: 'ARANIYOR', RINGING: 'ÇALIYOR', HOLDING: 'BEKLEMEDE', CONNECTING: 'BAĞLANIYOR' };
-      incallStatus.textContent = stateLabels[activeCall.status] || 'ARAMA DURUMU';
-      const muteButton = document.getElementById('muteBtn');
-      const routeButton = document.getElementById('speakerBtn');
-      const holdButton = document.getElementById('holdCallBtn');
-      const hasRouteInfo = Array.isArray(activeCall.availableRoutes) && activeCall.availableRoutes.length > 0;
-      const bluetoothRouteAvailable = activeCall.availableRoutes?.includes('BLUETOOTH');
-      muteButton?.classList.toggle('active', Boolean(activeCall.isMuted));
-      routeButton?.classList.toggle('active', activeCall.audioRoute === 'BLUETOOTH');
-      if (routeButton) {
-        routeButton.disabled = hasRouteInfo && !bluetoothRouteAvailable && activeCall.audioRoute !== 'BLUETOOTH';
-        routeButton.title = routeButton.disabled
-          ? 'Telefon kullanılabilir bir Bluetooth arama aygıtı görmüyor.'
-          : 'Telefon görüşme sesini bilgisayarın Bluetooth eller serbest aygıtına yönlendir.';
-      }
-      holdButton?.classList.toggle('active', activeCall.status === 'HOLDING');
-      const audioNote = document.getElementById('incallAudioNote');
-      if (audioNote) audioNote.textContent = activeCall.audioRoute === 'BLUETOOTH'
-        ? 'Bluetooth arama sesi seçildi. Ses, telefon ile eşleşmiş bilgisayarın eller serbest ses bağlantısından geçer.'
-        : hasRouteInfo && !bluetoothRouteAvailable
-          ? 'Telefon kullanılabilir bir Bluetooth görüşme aygıtı görmüyor. Telefonu Windows ile eller serbest arama aygıtı olarak eşleştir; destek Windows sürücüsüne bağlıdır.'
-          : 'PC sesi için telefonu Windows ile Bluetooth eller serbest arama aygıtı olarak eşleştirip PC sesi (BT) düğmesine bas. Arama denetimi için telefonda PhoneLink’i varsayılan telefon uygulaması yap.';
-      incallOverlay.classList.add('active');
-    } else {
-      incallOverlay.classList.remove('active');
-      incallTimer.textContent = '00:00';
-    }
   }
-
-  document.getElementById('endCallBtn')?.addEventListener('click', () => {
-    window.phoneAudio.playClick();
-    sendToServer('END_CALL');
+  syncMessagesButton?.addEventListener('click', () => sendToServer('REQ_SYNC_ALL'));
+  sendSmsButton?.addEventListener('click', sendCurrentSms);
+  smsInput?.addEventListener('keydown', event => {
+    if (event.key === 'Enter') sendCurrentSms();
   });
 
-  document.getElementById('muteBtn')?.addEventListener('click', () => {
-    sendToServer('CALL_MUTE', { muted: !Boolean(activeCall?.isMuted) });
-  });
-  document.getElementById('speakerBtn')?.addEventListener('click', () => {
-    sendToServer('CALL_ROUTE', { route: activeCall?.audioRoute === 'BLUETOOTH' ? 'PHONE' : 'BLUETOOTH' });
-  });
-  document.getElementById('holdCallBtn')?.addEventListener('click', () => {
-    sendToServer(activeCall?.status === 'HOLDING' ? 'CALL_UNHOLD' : 'CALL_HOLD');
-  });
-  document.getElementById('incallKeypadBtn')?.addEventListener('click', () => {
-    const panel = document.getElementById('incallKeypad');
-    if (panel) panel.hidden = !panel.hidden;
-  });
-  document.querySelectorAll('[data-incall-digit]').forEach(button => {
-    button.addEventListener('click', () => {
-      const digit = button.dataset.incallDigit;
-      window.phoneAudio.playTone(digit, 0.12);
-      sendToServer('DTMF_TONE', { digit });
-    });
-  });
-  document.getElementById('addCallBtn')?.addEventListener('click', () => {
-    const panel = document.getElementById('addCallPanel');
-    if (panel) {
-      panel.hidden = !panel.hidden;
-      if (!panel.hidden) document.getElementById('addCallNumber')?.focus();
-    }
-  });
-  document.getElementById('confirmAddCallBtn')?.addEventListener('click', () => {
-    const input = document.getElementById('addCallNumber');
-    const number = input?.value.trim();
-    if (!number) { showToast('Eklenecek telefon numarasını gir.'); return; }
-    sendToServer('ADD_CALL', { number });
-    input.value = '';
-    const panel = document.getElementById('addCallPanel');
-    if (panel) panel.hidden = true;
-  });
-  document.getElementById('addCallNumber')?.addEventListener('keydown', event => {
-    if (event.key === 'Enter') document.getElementById('confirmAddCallBtn')?.click();
-  });
-
-  // --- Device Status Header UI ---
-  function updateDeviceStatusUI() {
+  function renderDeviceStatus() {
+    const connected = Boolean(deviceState.connected);
     const statusText = document.getElementById('deviceStatusText');
     const batteryFill = document.getElementById('batteryFill');
     const batteryPercent = document.getElementById('batteryPercent');
@@ -601,30 +283,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusConnectionState = document.getElementById('statusConnectionState');
     const statusBattery = document.getElementById('statusBattery');
     const statusPill = document.querySelector('.header-status-pill');
-    const connected = Boolean(deviceState.connected);
 
-    if (statusText) {
-      statusText.textContent = connected ? `${deviceState.deviceName || 'Telefon'} bağlı` : 'Telefon bağlı değil';
-    }
+    if (statusText) statusText.textContent = connected ? `${deviceState.deviceName || 'Telefon'} bağlı` : 'Telefon bağlı değil';
     statusPill?.classList.toggle('connected', connected);
-    if (batteryPercent) {
-      batteryPercent.textContent = connected && Number(deviceState.batteryLevel) >= 0 ? `%${deviceState.batteryLevel}` : '—';
-    }
-    if (batteryFill) {
-      batteryFill.style.width = connected && Number(deviceState.batteryLevel) >= 0 ? `${deviceState.batteryLevel}%` : '0%';
-    }
+    const batteryLevel = Number(deviceState.batteryLevel);
+    if (batteryPercent) batteryPercent.textContent = connected && batteryLevel >= 0 ? `%${batteryLevel}` : '—';
+    if (batteryFill) batteryFill.style.width = connected && batteryLevel >= 0 ? `${batteryLevel}%` : '0%';
     if (statusDeviceName) statusDeviceName.textContent = connected ? (deviceState.deviceName || 'Telefon') : 'Henüz bağlanmadı';
     if (statusConnectionState) {
       statusConnectionState.textContent = connected ? '🟢 Bağlı' : 'Bağlantı bekleniyor';
       statusConnectionState.style.color = connected ? 'var(--ios-green)' : 'var(--ios-yellow)';
     }
-    if (statusBattery) {
-      statusBattery.textContent = connected && Number(deviceState.batteryLevel) >= 0
-        ? `%${deviceState.batteryLevel}${deviceState.isCharging ? ' (Şarj oluyor)' : ''}` : '—';
-    }
+    if (statusBattery) statusBattery.textContent = connected && batteryLevel >= 0
+      ? `%${batteryLevel}${deviceState.isCharging ? ' (Şarj oluyor)' : ''}` : '—';
   }
-  updateDeviceStatusUI();
-  refreshPairingInfo();
 
   document.getElementById('btnOpenPairing')?.addEventListener('click', async () => {
     try {
@@ -635,23 +307,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       refreshPairingInfo();
       showToast('5 dakikalık eşleştirme açıldı.');
-    } catch (_) { showToast('Eşleştirme açılamadı. Uygulamayı yeniden başlatıp dene.'); }
+    } catch (_) {
+      showToast('Eşleştirme açılamadı. Uygulamayı yeniden başlatıp dene.');
+    }
   });
 
-  // --- Auto-Update Check ---
-  let latestPcVersion = null;
-  let lastNotifiedUpdateVersion = null;
-  let deferredUpdateVersion = null;
   const updateDialog = document.getElementById('updateDialog');
   const updateDialogVersion = document.getElementById('updateDialogVersion');
   const updateDialogNotes = document.getElementById('updateDialogNotes');
   const updateDownloadStatus = document.getElementById('updateDownloadStatus');
-  const updateDownloadBtn = document.getElementById('updateDownloadBtn');
-  const pcUpdatePill = document.getElementById('pcUpdatePill');
-  const pcUpdateVer = document.getElementById('pcUpdateVer');
-  const pcBtnDownloadUpdate = document.getElementById('pcBtnDownloadUpdate');
-  const btnCheckUpdateManual = document.getElementById('btnCheckUpdateManual');
-  const pcUpdateStatusMsg = document.getElementById('pcUpdateStatusMsg');
+  const updateDownloadButton = document.getElementById('updateDownloadBtn');
+  const updateProgressBar = document.getElementById('updateProgressBar');
+  const updatePill = document.getElementById('pcUpdatePill');
+  const updatePillVersion = document.getElementById('pcUpdateVer');
+  const updateManualButton = document.getElementById('btnCheckUpdateManual');
+  const updateStatus = document.getElementById('pcUpdateStatusMsg');
 
   function closeUpdateDialog(defer = false) {
     if (defer && updateDialogVersion?.dataset.version) deferredUpdateVersion = updateDialogVersion.dataset.version;
@@ -663,88 +333,95 @@ document.addEventListener('DOMContentLoaded', () => {
       updateDialogVersion.textContent = `Yeni sürüm v${version}`;
       updateDialogVersion.dataset.version = version;
     }
-    if (updateDialogNotes) updateDialogNotes.textContent = notes || 'Yeni sürüm hazır. İndirme tamamlanınca PhoneLink kapanıp güncellenecek ve yeniden açılacak.';
-    if (updateDownloadStatus) updateDownloadStatus.textContent = 'İndirme tamamlandığında uygulama otomatik olarak güncellenip yeniden açılır.';
-    if (updateDownloadBtn) { updateDownloadBtn.disabled = false; updateDownloadBtn.textContent = 'Şimdi indir'; }
+    if (updateDialogNotes) updateDialogNotes.textContent = notes || 'İndirme tamamlanınca PhoneLink kapanıp kurulumu başlatacak ve yeniden açılacak.';
+    if (updateDownloadStatus) updateDownloadStatus.textContent = 'İndirme tamamlandığında uygulama otomatik güncellenip yeniden açılır.';
+    if (updateProgressBar) updateProgressBar.style.width = '0%';
+    if (updateDownloadButton) {
+      updateDownloadButton.disabled = false;
+      updateDownloadButton.textContent = 'Şimdi indir';
+    }
     if (updateDialog) updateDialog.style.display = 'flex';
   }
 
   function checkAppUpdate(manual = false) {
-    if (pcUpdateStatusMsg && manual) pcUpdateStatusMsg.textContent = 'Güncellemeler denetleniyor...';
-    fetch('/api/check-update')
-      .then(res => res.json())
+    if (updateStatus && manual) updateStatus.textContent = 'Güncellemeler denetleniyor…';
+    fetch('/api/check-update', { cache: 'no-store' })
+      .then(response => response.json())
       .then(data => {
-        if (!data || data.error) throw new Error('Update check failed');
+        if (!data || data.error) throw new Error('Güncelleme denetlenemedi.');
         if (data.hasUpdate) {
-          if (pcUpdatePill) {
-            pcUpdatePill.style.display = 'flex';
-            if (pcUpdateVer) pcUpdateVer.textContent = 'v' + data.latestVersion;
-          }
           latestPcVersion = data.latestVersion;
-          if (pcUpdateStatusMsg) {
-            pcUpdateStatusMsg.textContent = `🚀 Yeni sürüm mevcut: v${data.latestVersion}`;
-          }
+          if (updatePill) updatePill.style.display = 'flex';
+          if (updatePillVersion) updatePillVersion.textContent = `v${data.latestVersion}`;
+          if (updateStatus) updateStatus.textContent = `Yeni sürüm mevcut: v${data.latestVersion}`;
           if (manual || (lastNotifiedUpdateVersion !== data.latestVersion && deferredUpdateVersion !== data.latestVersion)) {
-            showToast(`🚀 Yeni Güncelleme Yayında: v${data.latestVersion}`);
             lastNotifiedUpdateVersion = data.latestVersion;
             showUpdateDialog(data.latestVersion, data.notes);
           }
         } else {
-          if (pcUpdatePill) pcUpdatePill.style.display = 'none';
-          if (pcUpdateStatusMsg) {
-            pcUpdateStatusMsg.textContent = `✅ Yazılımınız güncel (v${data.currentVersion})`;
-          }
-          if (manual) showToast('✅ KZBS PhoneLink en güncel sürümde!');
+          if (updatePill) updatePill.style.display = 'none';
+          if (updateStatus) updateStatus.textContent = `Yazılım güncel (v${data.currentVersion})`;
+          if (manual) showToast('KZBS PhoneLink güncel.');
         }
       })
-      .catch(err => {
-        if (pcUpdateStatusMsg && manual) pcUpdateStatusMsg.textContent = 'Güncelleme denetlenemedi.';
+      .catch(() => {
+        if (updateStatus && manual) updateStatus.textContent = 'Güncelleme denetlenemedi.';
       });
   }
 
-  btnCheckUpdateManual?.addEventListener('click', () => checkAppUpdate(true));
-  pcBtnDownloadUpdate?.addEventListener('click', () => {
+  updateManualButton?.addEventListener('click', () => checkAppUpdate(true));
+  updatePill?.addEventListener('click', () => {
     if (latestPcVersion) showUpdateDialog(latestPcVersion, updateDialogNotes?.textContent);
   });
   document.getElementById('updateLaterBtn')?.addEventListener('click', () => closeUpdateDialog(true));
   document.getElementById('updateDialogClose')?.addEventListener('click', () => closeUpdateDialog(true));
-  updateDownloadBtn?.addEventListener('click', async () => {
-    if (!window.phoneLink?.startUpdateInstall) { showToast('Uygulama içi güncelleme yalnızca Windows uygulamasında kullanılabilir.'); return; }
-    updateDownloadBtn.disabled = true;
-    updateDownloadBtn.textContent = 'İndiriliyor…';
-    if (updateDownloadStatus) updateDownloadStatus.textContent = 'Güncelleme GitHub’dan alınıyor…';
+
+  updateDownloadButton?.addEventListener('click', async () => {
+    if (!window.phoneLink?.startUpdateInstall) {
+      showToast('Uygulama içi güncelleme yalnızca Windows uygulamasında kullanılabilir.');
+      return;
+    }
+    updateDownloadButton.disabled = true;
+    updateDownloadButton.textContent = 'İndiriliyor…';
+    if (updateDownloadStatus) updateDownloadStatus.textContent = 'Güncelleme sunucudan alınıyor…';
     try {
       await window.phoneLink.startUpdateInstall();
-      updateDownloadBtn.textContent = 'İndiriliyor…';
-      if (updateDownloadStatus) updateDownloadStatus.textContent = 'İndirme başladı. Tamamlanınca uygulama otomatik güncellenecek.';
     } catch (error) {
-      updateDownloadBtn.disabled = false;
-      updateDownloadBtn.textContent = 'Yeniden dene';
-      if (updateDownloadStatus) updateDownloadStatus.textContent = error?.message || 'İndirme başarısız oldu. İnternet bağlantısını kontrol et.';
+      updateDownloadButton.disabled = false;
+      updateDownloadButton.textContent = 'Yeniden dene';
+      if (updateDownloadStatus) updateDownloadStatus.textContent = error?.message || 'Güncelleme indirilemedi.';
     }
   });
+
   window.phoneLink?.onUpdateInstallState(update => {
     if (update.state === 'downloading') {
-      if (updateDownloadStatus) updateDownloadStatus.textContent = `Güncelleme indiriliyor: %${update.percent ?? 0}`;
-      if (updateDownloadBtn) { updateDownloadBtn.disabled = true; updateDownloadBtn.textContent = 'İndiriliyor…'; }
+      const percent = Math.max(0, Math.min(100, Number(update.percent) || 0));
+      if (updateProgressBar) updateProgressBar.style.width = `${percent}%`;
+      if (updateDownloadStatus) updateDownloadStatus.textContent = `Güncelleme indiriliyor: %${percent}`;
+      if (updateDownloadButton) {
+        updateDownloadButton.disabled = true;
+        updateDownloadButton.textContent = 'İndiriliyor…';
+      }
     } else if (update.state === 'installing') {
-      if (updateDownloadStatus) updateDownloadStatus.textContent = 'İndirme tamamlandı. PhoneLink kapanıp güncellenecek ve yeniden açılacak…';
-      if (updateDownloadBtn) updateDownloadBtn.textContent = 'Kuruluyor…';
+      if (updateProgressBar) updateProgressBar.style.width = '100%';
+      if (updateDownloadStatus) updateDownloadStatus.textContent = 'İndirme tamamlandı. Uygulama kapanıp güncellenecek ve yeniden açılacak…';
+      if (updateDownloadButton) updateDownloadButton.textContent = 'Kuruluyor…';
     } else if (update.state === 'error') {
+      if (updateDownloadButton) {
+        updateDownloadButton.disabled = false;
+        updateDownloadButton.textContent = 'Yeniden dene';
+      }
       if (updateDownloadStatus) updateDownloadStatus.textContent = update.message || 'Güncelleme indirilemedi.';
-      if (updateDownloadBtn) { updateDownloadBtn.disabled = false; updateDownloadBtn.textContent = 'Yeniden dene'; }
     }
   });
 
+  document.getElementById('winMinBtn')?.addEventListener('click', () => window.phoneLink?.minimize());
+  document.getElementById('winMaxBtn')?.addEventListener('click', () => window.phoneLink?.toggleMaximize());
+  document.getElementById('winCloseBtn')?.addEventListener('click', () => window.phoneLink?.close());
+
+  connectSocket();
+  renderAll();
+  refreshPairingInfo();
   checkAppUpdate(false);
   setInterval(() => checkAppUpdate(false), 10 * 60 * 1000);
-
-  // --- Native Windows Window Controls (Electron) ---
-  try {
-    if (window.phoneLink) {
-      document.getElementById('winMinBtn')?.addEventListener('click', () => window.phoneLink.minimize());
-      document.getElementById('winMaxBtn')?.addEventListener('click', () => window.phoneLink.toggleMaximize());
-      document.getElementById('winCloseBtn')?.addEventListener('click', () => window.phoneLink.close());
-    }
-  } catch(e) {}
 });

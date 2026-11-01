@@ -1,16 +1,16 @@
 {
-  "version": "1.0.7",
-  "versionCode": 8,
+  "version": "1.0.8",
+  "versionCode": 9,
   "releaseDate": "2026-11-01",
-  "title": "KZBS PhoneLink v1.0.7",
-  "notes": "Mesajlar bilgisayarda saklanır; SMS izni veya eşitleme hatası ekranda gösterilir ve yeniden eşitleme yapılabilir. Telefon aramayı SIM hattından sürdürür; bilgisayar sesi Bluetooth eller serbest bağlantısı desteklendiğinde kullanılabilir.",
+  "title": "KZBS PhoneLink v1.0.8",
+  "notes": "PhoneLink artık arama özellikleri yerine SMS eşitlemesine odaklanır. Yeni sürüm bildirimi ve indirme ilerlemesi Android ile Windows uygulamalarında gösterilir.",
   "pc": {
-    "version": "1.0.7",
-    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.7/KZBS-PhoneLink-Setup-v1.0.7.exe"
+    "version": "1.0.8",
+    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.8/KZBS-PhoneLink-Setup-v1.0.8.exe"
   },
   "android": {
-    "version": "1.0.7",
-    "versionCode": 8,
-    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.7/KZBS-PhoneLink-v1.0.7.apk"
+    "version": "1.0.8",
+    "versionCode": 9,
+    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.8/KZBS-PhoneLink-v1.0.8.apk"
   }
 }

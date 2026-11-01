@@ -1,5 +1,5 @@
 {
-  "version": "1.0.7",
+  "version": "1.0.8",
   "app_name": "KZBS PhoneLink",
   "discovery": {
     "transport": "UDP broadcast",
@@ -14,40 +14,24 @@
     "desktop_path": "/client"
   },
   "commands": [
-    "DIAL_CALL",
-    "ADD_CALL",
-    "END_CALL",
-    "DTMF_TONE",
-    "CALL_MUTE",
-    "CALL_ROUTE",
-    "CALL_HOLD",
-    "CALL_UNHOLD",
     "SEND_SMS",
     "REQ_SYNC_ALL"
   ],
   "phone_events": [
     "DEVICE_HELLO",
-    "PHONE_ACTION_RESULT",
     "SMS_RECEIVED",
     "SMS_SYNC_STATUS",
     "SMS_SEND_RESULT",
-    "SMS_SYNCED",
-    "CALL_STATE_CHANGED",
-    "CONTACTS_SYNCED",
-    "CALL_LOGS_SYNCED"
+    "SMS_SYNCED"
   ],
   "desktop_events": [
     "INIT_STATE",
     "PAIRING_COMPLETE",
     "PHONE_CONNECTION_CHANGED",
     "DEVICE_STATUS_UPDATED",
-    "ACTIVE_CALL_CHANGED",
-    "CALL_DURATION_TICK",
     "NEW_SMS",
     "MESSAGES_UPDATED",
     "MESSAGES_SYNC_STATUS",
-    "CONTACTS_UPDATED",
-    "CALL_LOGS_UPDATED",
     "APP_ERROR"
   ]
 }

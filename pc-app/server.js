@@ -41,10 +41,6 @@ const pairingAttempts = new Map();
 const pcClients = new Set();
 let connectedPhone = null;
 let deviceState = { connected: false, deviceName: null, batteryLevel: null, isCharging: false, ipAddress: null };
-let activeCall = null;
-let callTimer = null;
-let contacts = [];
-let callLogs = [];
 function loadMessagesState() {
   try {
     const value = JSON.parse(fs.readFileSync(messagesStatePath, 'utf8'));
@@ -229,12 +225,8 @@ wss.on('connection', (ws, req) => {
         };
         broadcastToPc('MESSAGES_SYNC_STATUS', messageSyncStatus);
       }
-      if (callTimer) clearInterval(callTimer);
-      callTimer = null;
-      activeCall = null;
       console.log('[PhoneLink] Telefon bağlantısı kapandı.');
       broadcastToPc('PHONE_CONNECTION_CHANGED', deviceState);
-      broadcastToPc('ACTIVE_CALL_CHANGED', null);
     });
     return;
   }
@@ -242,7 +234,7 @@ wss.on('connection', (ws, req) => {
   pcClients.add(ws);
   ws.send(JSON.stringify({
     action: 'INIT_STATE',
-    payload: { deviceState, activeCall, contacts, callLogs, messages, messageSyncStatus }
+    payload: { deviceState, messages, messageSyncStatus }
   }));
   ws.on('message', data => {
     try {
@@ -344,30 +336,6 @@ function handlePhoneMessage(message) {
       broadcastToPc('MESSAGES_SYNC_STATUS', messageSyncStatus);
       break;
     }
-    case 'PHONE_ACTION_RESULT':
-      if (!payload.success) {
-        if (payload.command === 'DIAL_CALL') {
-          activeCall = null;
-          broadcastToPc('ACTIVE_CALL_CHANGED', null);
-        }
-        broadcastToPc('APP_ERROR', { message: payload.error || 'Telefon işlemi tamamlanamadı.' });
-      }
-      break;
-    case 'CALL_STATE_CHANGED':
-      updateCallState(payload);
-      break;
-    case 'CONTACTS_SYNCED':
-      if (Array.isArray(payload)) {
-        contacts = payload;
-        broadcastToPc('CONTACTS_UPDATED', contacts);
-      }
-      break;
-    case 'CALL_LOGS_SYNCED':
-      if (Array.isArray(payload)) {
-        callLogs = payload;
-        broadcastToPc('CALL_LOGS_UPDATED', callLogs);
-      }
-      break;
     default:
       console.log(`[PhoneLink] Bilinmeyen telefon olayı: ${action}`);
   }
@@ -376,28 +344,6 @@ function handlePhoneMessage(message) {
 function handlePcMessage(message) {
   const { action, payload = {} } = message;
   switch (action) {
-    case 'DIAL_CALL':
-      initiateCall(payload.number, payload.contactName);
-      break;
-    case 'END_CALL':
-      if (!sendToPhone('END_CALL', {})) broadcastToPc('APP_ERROR', { message: 'Önce telefonunu PhoneLink’e bağla.' });
-      break;
-    case 'ADD_CALL':
-      if (!connectedPhone || connectedPhone.readyState !== WebSocket.OPEN) {
-        broadcastToPc('APP_ERROR', { message: 'Arama eklemek için önce telefonunu PhoneLink’e bağla.' });
-      } else if (!payload.number) {
-        broadcastToPc('APP_ERROR', { message: 'Eklenecek telefon numarasını gir.' });
-      } else {
-        sendToPhone('ADD_CALL', { number: String(payload.number), contactName: payload.contactName || '' });
-      }
-      break;
-    case 'DTMF_TONE':
-    case 'CALL_MUTE':
-    case 'CALL_ROUTE':
-    case 'CALL_HOLD':
-    case 'CALL_UNHOLD':
-      if (!sendToPhone(action, payload)) broadcastToPc('APP_ERROR', { message: 'Arama denetimi için önce telefonunu PhoneLink’e bağla.' });
-      break;
     case 'SEND_SMS':
       sendSmsFromPc(payload.phone, payload.text);
       break;
@@ -409,61 +355,6 @@ function handlePcMessage(message) {
     default:
       console.log(`[PhoneLink] Desteklenmeyen bilgisayar isteği: ${action}`);
   }
-}
-
-function initiateCall(number, contactName) {
-  if (!connectedPhone || connectedPhone.readyState !== WebSocket.OPEN) {
-    broadcastToPc('APP_ERROR', { message: 'Arama yapmak için önce telefonunu PhoneLink’e bağla.' });
-    return;
-  }
-  if (!number) {
-    broadcastToPc('APP_ERROR', { message: 'Aranacak telefon numarası boş.' });
-    return;
-  }
-  activeCall = {
-    number,
-    contactName: contactName || contacts.find(contact => contact.phone === number)?.name || number,
-    status: 'DIALING',
-    startTime: Date.now(),
-    duration: 0
-  };
-  sendToPhone('DIAL_CALL', { number, contactName: contactName || '' });
-  broadcastToPc('ACTIVE_CALL_CHANGED', activeCall);
-}
-
-function startCallDurationTimer() {
-  if (callTimer) clearInterval(callTimer);
-  callTimer = setInterval(() => {
-    if (!activeCall) {
-      clearInterval(callTimer);
-      callTimer = null;
-      return;
-    }
-    activeCall.duration = Math.floor((Date.now() - (activeCall.connectedTime || activeCall.startTime)) / 1000);
-    broadcastToPc('CALL_DURATION_TICK', { duration: activeCall.duration });
-  }, 1000);
-}
-
-function updateCallState(payload) {
-  if (payload.status === 'ENDED' || payload.status === 'IDLE') {
-    if (callTimer) clearInterval(callTimer);
-    callTimer = null;
-    activeCall = null;
-    broadcastToPc('ACTIVE_CALL_CHANGED', null);
-    setTimeout(() => sendToPhone('REQ_SYNC_ALL', {}), 700);
-    return;
-  }
-  activeCall = {
-    ...(activeCall || {}),
-    ...payload,
-    number: payload.number || activeCall?.number || 'Bilinmeyen numara',
-    contactName: activeCall?.contactName || contacts.find(contact => contact.phone === payload.number)?.name || payload.number
-  };
-  if (payload.status === 'ACTIVE') {
-    activeCall.connectedTime = Date.now();
-    startCallDurationTimer();
-  }
-  broadcastToPc('ACTIVE_CALL_CHANGED', activeCall);
 }
 
 function sendSmsFromPc(phone, text) {
@@ -481,7 +372,7 @@ function sendSmsFromPc(phone, text) {
 }
 
 app.get('/api/state', requireLocalRequest, (req, res) => {
-  res.json({ deviceState, activeCall, contacts, callLogs, messages });
+  res.json({ deviceState, messages, messageSyncStatus });
 });
 
 app.get('/api/connection-info', requireLocalRequest, (req, res) => {

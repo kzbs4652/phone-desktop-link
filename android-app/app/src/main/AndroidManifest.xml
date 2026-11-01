@@ -7,16 +7,9 @@
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.SEND_SMS" />
 
-    <!-- Phone & Call Permissions -->
-    <uses-permission android:name="android.permission.CALL_PHONE" />
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <uses-permission android:name="android.permission.READ_CALL_LOG" />
-    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
+    <!-- QR code pairing -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
-
-    <!-- Contacts Permission -->
-    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <!-- Local Wi-Fi discovery and connection -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -53,45 +46,12 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".DialerActivity"
-            android:exported="true"
-            android:label="PhoneLink Telefon">
-            <intent-filter>
-                <action android:name="android.intent.action.DIAL" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.DIAL" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="tel" />
-            </intent-filter>
-        </activity>
-
-        <activity
-            android:name=".InCallActivity"
-            android:exported="false"
-            android:showWhenLocked="true"
-            android:turnScreenOn="true" />
-
         <!-- Persistent Foreground Bridge Service -->
         <service
             android:name=".service.PhoneLinkService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
-
-        <service
-            android:name=".service.PhoneInCallService"
-            android:enabled="true"
-            android:exported="true"
-            android:permission="android.permission.BIND_INCALL_SERVICE">
-            <meta-data android:name="android.telecom.IN_CALL_SERVICE_UI" android:value="true" />
-            <meta-data android:name="android.telecom.IN_CALL_SERVICE_RINGING" android:value="true" />
-            <intent-filter>
-                <action android:name="android.telecom.InCallService" />
-            </intent-filter>
-        </service>
 
         <receiver
             android:name=".service.BootReceiver"
@@ -111,16 +71,6 @@
             android:permission="android.permission.BROADCAST_SMS">
             <intent-filter android:priority="999">
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
-            </intent-filter>
-        </receiver>
-
-        <!-- Phone Call State Receiver -->
-        <receiver
-            android:name=".receiver.CallStateReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.PHONE_STATE" />
             </intent-filter>
         </receiver>
 

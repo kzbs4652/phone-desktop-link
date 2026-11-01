@@ -11,9 +11,7 @@ import android.content.IntentFilter
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
-import android.os.Bundle
 import android.os.IBinder
-import android.telecom.TelecomManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.google.gson.Gson
@@ -21,8 +19,6 @@ import com.google.gson.JsonObject
 import com.kzbs.phonelink.BuildConfig
 import com.kzbs.phonelink.MainActivity
 import com.kzbs.phonelink.R
-import com.kzbs.phonelink.manager.CallLogsHelper
-import com.kzbs.phonelink.manager.ContactsHelper
 import com.kzbs.phonelink.manager.SmsHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -464,31 +460,6 @@ class PhoneLinkService : Service() {
                         updateNotification("Eşleştirme tamamlandı; otomatik bağlantı açık")
                     }
                 }
-                "DIAL_CALL" -> {
-                    val number = payload.get("number")?.asString.orEmpty()
-                    val started = initiatePhoneCall(number)
-                    sendActionResult("DIAL_CALL", started, if (started) null else "Arama başlatılamadı")
-                }
-                "END_CALL" -> {
-                    val ended = PhoneInCallService.handlePcCommand("END_CALL", payload) || endActiveCall()
-                    sendActionResult("END_CALL", ended, if (ended) null else "Arama bu telefonda sonlandırılamadı")
-                }
-                "ADD_CALL" -> {
-                    val number = payload.get("number")?.asString.orEmpty()
-                    val started = if (PhoneInCallService.currentCall != null) {
-                        PhoneInCallService.handlePcCommand("ADD_CALL", payload)
-                    } else initiatePhoneCall(number)
-                    sendActionResult("ADD_CALL", started, if (started) null else "Ek arama başlatılamadı")
-                }
-                "DTMF_TONE", "CALL_MUTE", "CALL_ROUTE", "CALL_HOLD", "CALL_UNHOLD" -> {
-                    val handled = PhoneInCallService.handlePcCommand(action, payload)
-                    val error = when (action) {
-                        "CALL_ROUTE" -> "Telefonda uygun Bluetooth arama ses aygıtı bulunamadı veya rota değiştirilemedi"
-                        "CALL_HOLD", "CALL_UNHOLD" -> "Telefon veya operatör bu aramada bekletmeyi desteklemiyor"
-                        else -> "Arama denetimi için telefonda PhoneLink arama denetimini etkinleştir"
-                    }
-                    sendActionResult(action, handled, if (handled) null else error)
-                }
                 "SEND_SMS" -> {
                     val phone = payload.get("phone")?.asString.orEmpty()
                     val text = payload.get("text")?.asString.orEmpty()
@@ -510,57 +481,9 @@ class PhoneLinkService : Service() {
         }
     }
 
-    private fun sendActionResult(action: String, success: Boolean, error: String?) {
-        val result = JsonObject().apply {
-            addProperty("action", "PHONE_ACTION_RESULT")
-            add("payload", JsonObject().apply {
-                addProperty("command", action)
-                addProperty("success", success)
-                if (error != null) addProperty("error", error)
-            })
-        }
-        sendToPc(result.toString())
-    }
-
-    private fun initiatePhoneCall(number: String): Boolean {
-        if (number.isBlank()) return false
-        return try {
-            val telecomManager = getSystemService(Context.TELECOM_SERVICE) as TelecomManager
-            telecomManager.placeCall(android.net.Uri.fromParts("tel", number, null), Bundle.EMPTY)
-            true
-        } catch (error: Exception) {
-            Log.e(TAG, "Arama başlatılamadı: ${error.message}")
-            false
-        }
-    }
-
-    private fun endActiveCall(): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val telecomManager = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
-            try {
-                return telecomManager?.endCall() == true
-            } catch (error: SecurityException) {
-                Log.e(TAG, "Arama sonlandırılamadı: ${error.message}")
-            }
-        }
-        return false
-    }
-
     private fun syncPhoneData() {
         if (dataSyncJob?.isActive == true) return
         dataSyncJob = scope.launch {
-            try {
-                sendSyncPayload("CONTACTS_SYNCED", gson.toJsonTree(ContactsHelper.fetchContacts(this@PhoneLinkService)))
-            } catch (error: Exception) {
-                Log.e(TAG, "Kişiler eşitlenemedi: ${error.message}", error)
-            }
-
-            try {
-                sendSyncPayload("CALL_LOGS_SYNCED", gson.toJsonTree(CallLogsHelper.fetchCallLogs(this@PhoneLinkService)))
-            } catch (error: Exception) {
-                Log.e(TAG, "Arama geçmişi eşitlenemedi: ${error.message}", error)
-            }
-
             sendSmsSyncStatus("syncing", "SMS’ler telefondan okunuyor…")
             try {
                 val result = SmsHelper.fetchInbox(this@PhoneLinkService)

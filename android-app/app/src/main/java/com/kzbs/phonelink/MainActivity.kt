@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.app.DownloadManager
-import android.app.role.RoleManager
 import android.net.Uri
 import android.os.Environment
 import android.os.Build
@@ -20,6 +19,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -38,7 +38,6 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val PERMISSION_REQUEST_CODE = 1001
-        private const val DIALER_ROLE_REQUEST_CODE = 1002
         private const val UPDATE_INSTALL_SOURCE_REQUEST_CODE = 1003
         private const val PREF_PENDING_UPDATE_DOWNLOAD_ID = "pendingAndroidUpdateDownloadId"
         private const val PREF_PENDING_UPDATE_URL = "pendingAndroidUpdateUrl"
@@ -48,12 +47,7 @@ class MainActivity : AppCompatActivity() {
     private val requiredPermissions = mutableListOf(
         Manifest.permission.RECEIVE_SMS,
         Manifest.permission.READ_SMS,
-        Manifest.permission.SEND_SMS,
-        Manifest.permission.CALL_PHONE,
-        Manifest.permission.ANSWER_PHONE_CALLS,
-        Manifest.permission.READ_PHONE_STATE,
-        Manifest.permission.READ_CALL_LOG,
-        Manifest.permission.READ_CONTACTS
+        Manifest.permission.SEND_SMS
     )
 
     private lateinit var status: TextView
@@ -63,6 +57,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var discoveredList: LinearLayout
     private lateinit var updateBanner: LinearLayout
     private lateinit var updateText: TextView
+    private lateinit var updateProgressText: TextView
+    private lateinit var updateProgressBar: ProgressBar
     private var receiverRegistered = false
     private var pendingConnection: Pair<String, String>? = null
     private var currentUpdateVersion: String? = null
@@ -70,8 +66,13 @@ class MainActivity : AppCompatActivity() {
     private var updatePromptShownFor: String? = null
     private var pendingUpdateUrl: String? = null
     private var updateDownloadReceiverRegistered = false
+    private var activeUpdateDownloadId = -1L
+    private var handledUpdateDownloadId = -1L
     private val discoveredHosts = mutableSetOf<String>()
     private val updateHandler = Handler(Looper.getMainLooper())
+    private val updateProgressPoll = object : Runnable {
+        override fun run() = pollUpdateDownload()
+    }
     private val periodicUpdateCheck = object : Runnable {
         override fun run() {
             checkForUpdate(manual = false)
@@ -119,6 +120,8 @@ class MainActivity : AppCompatActivity() {
         discoveredList = findViewById(R.id.layoutDiscoveredComputers)
         updateBanner = findViewById(R.id.layoutUpdateBanner)
         updateText = findViewById(R.id.tvUpdateBannerText)
+        updateProgressText = findViewById(R.id.tvUpdateProgressText)
+        updateProgressBar = findViewById(R.id.progressUpdateDownload)
         findViewById<TextView>(R.id.tvAppVersion).text = " v${BuildConfig.VERSION_NAME}"
 
         findViewById<Button>(R.id.btnDiscoverComputers).setOnClickListener {
@@ -173,8 +176,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        findViewById<Button>(R.id.btnEnableCallControls).setOnClickListener { requestDialerRole() }
-
         findViewById<Button>(R.id.btnBatteryOptimization).setOnClickListener { requestBatteryOptimizationExemption() }
         findViewById<Button>(R.id.btnCheckUpdates).setOnClickListener { checkForUpdate(manual = true) }
         findViewById<Button>(R.id.btnDownloadUpdate).setOnClickListener { showUpdatePrompt(force = true) }
@@ -184,12 +185,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         status.text = "Bilgisayara bağlı değil"
-        updateDialerRoleStatus()
         appendLog("Hazır. Önce bilgisayardaki PhoneLink uygulamasını aç.")
         val setupPrefs = getSharedPreferences("setup", MODE_PRIVATE)
         if (missingPermissions().isNotEmpty() && !setupPrefs.getBoolean("permissionsPrompted", false)) {
             setupPrefs.edit().putBoolean("permissionsPrompted", true).apply()
-            appendLog("İlk kullanım için arama ve SMS izinleri istenecek.")
+            appendLog("İlk kullanım için SMS izinleri istenecek.")
             ActivityCompat.requestPermissions(this, missingPermissions().toTypedArray(), PERMISSION_REQUEST_CODE)
         }
         val pairingPrefs = getSharedPreferences(PhoneLinkService.PAIRING_PREFS, MODE_PRIVATE)
@@ -227,6 +227,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStop() {
         updateHandler.removeCallbacks(periodicUpdateCheck)
+        updateHandler.removeCallbacks(updateProgressPoll)
         if (receiverRegistered) {
             unregisterReceiver(serviceReceiver)
             receiverRegistered = false
@@ -300,12 +301,6 @@ class MainActivity : AppCompatActivity() {
             }
             return
         }
-        if (requestCode == DIALER_ROLE_REQUEST_CODE) {
-            if (resultCode == RESULT_OK) appendLog("PhoneLink arama denetimi etkinleştirildi.")
-            else appendLog("Varsayılan telefon uygulaması değiştirilmedi; bilgisayardan gelişmiş arama tuşları çalışmayabilir.")
-            updateDialerRoleStatus()
-            return
-        }
         val result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
         if (result != null) {
             val contents = result.contents
@@ -333,46 +328,6 @@ class MainActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
     }
 
-    private fun requestDialerRole() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            Toast.makeText(this, "Bilgisayardan arama denetimi Android 10 ve üzeri gerektirir.", Toast.LENGTH_LONG).show()
-            return
-        }
-        val roleManager = getSystemService(RoleManager::class.java)
-        if (!roleManager.isRoleAvailable(RoleManager.ROLE_DIALER)) {
-            Toast.makeText(this, "Bu cihaz varsayılan telefon uygulaması seçimini desteklemiyor.", Toast.LENGTH_LONG).show()
-            return
-        }
-        if (roleManager.isRoleHeld(RoleManager.ROLE_DIALER)) {
-            updateDialerRoleStatus()
-            Toast.makeText(this, "PhoneLink arama denetimi zaten etkin.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Bilgisayardan arama denetimi")
-            .setMessage("Aramayı bilgisayardan bitirmek, tuşlama yapmak, sessize almak ve Bluetooth ses yönünü seçmek için PhoneLink'in varsayılan telefon uygulaması olması gerekir. Android'in sistem onay ekranı açılacak.")
-            .setNegativeButton("Şimdi değil", null)
-            .setPositiveButton("Devam et") { _, _ ->
-                startActivityForResult(roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER), DIALER_ROLE_REQUEST_CODE)
-            }
-            .show()
-    }
-
-    private fun updateDialerRoleStatus() {
-        if (!::status.isInitialized) return
-        val label = findViewById<TextView>(R.id.tvCallControlStatus)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val manager = getSystemService(RoleManager::class.java)
-            label.text = if (manager.isRoleHeld(RoleManager.ROLE_DIALER)) {
-                "PhoneLink arama denetimi etkin. Arama tuşları ve ses yönü bilgisayardan yönetilebilir."
-            } else {
-                "Bilgisayardan arama tuşları ve kapatma için PhoneLink'i varsayılan telefon uygulaması yap."
-            }
-        } else {
-            label.text = "Bilgisayardan gelişmiş arama denetimi Android 10 ve üzeri cihazlarda kullanılabilir."
-        }
-    }
-
     private fun startPhoneService(intent: Intent) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
@@ -388,8 +343,8 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode != PERMISSION_REQUEST_CODE) return
         val denied = permissions.indices.filter { index -> grantResults.getOrNull(index) != PackageManager.PERMISSION_GRANTED }
-        if (denied.isNotEmpty()) appendLog("Bazı izinler verilmedi. SMS, arama geçmişi veya rehber eşitlemesi kısıtlı olabilir.")
-        else appendLog("Telefon izinleri verildi.")
+        if (denied.isNotEmpty()) appendLog("SMS izinleri verilmedi; SMS eşitleme ve gönderme kısıtlı olabilir.")
+        else appendLog("SMS izinleri verildi.")
         pendingConnection?.let { (host, code) ->
             pendingConnection = null
             connect(host, code)
@@ -511,7 +466,17 @@ class MainActivity : AppCompatActivity() {
                 .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
             val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             val downloadId = manager.enqueue(request)
+            activeUpdateDownloadId = downloadId
             getSharedPreferences("updates", MODE_PRIVATE).edit().putLong(PREF_PENDING_UPDATE_DOWNLOAD_ID, downloadId).apply()
+            updateBanner.visibility = View.VISIBLE
+            updateText.text = "Yeni sürüm mevcut: v$version"
+            updateProgressBar.isIndeterminate = true
+            updateProgressBar.progress = 0
+            updateProgressBar.visibility = View.VISIBLE
+            updateProgressText.text = "Güncelleme indiriliyor…"
+            updateProgressText.visibility = View.VISIBLE
+            updateHandler.removeCallbacks(updateProgressPoll)
+            updateHandler.post(updateProgressPoll)
             Toast.makeText(this, "APK indiriliyor; bitince Android kurulum ekranı açılacak.", Toast.LENGTH_LONG).show()
             appendLog("Güncelleme indiriliyor: $fileName")
         } catch (error: Exception) {
@@ -521,19 +486,69 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkPendingUpdateDownload() {
         val downloadId = getSharedPreferences("updates", MODE_PRIVATE).getLong(PREF_PENDING_UPDATE_DOWNLOAD_ID, -1L)
-        if (downloadId != -1L) handleUpdateDownloadComplete(downloadId)
+        if (downloadId != -1L) {
+            activeUpdateDownloadId = downloadId
+            updateProgressText.visibility = View.VISIBLE
+            updateProgressBar.visibility = View.VISIBLE
+            updateHandler.removeCallbacks(updateProgressPoll)
+            updateHandler.post(updateProgressPoll)
+        }
+    }
+
+    private fun pollUpdateDownload() {
+        val preferences = getSharedPreferences("updates", MODE_PRIVATE)
+        if (activeUpdateDownloadId == -1L) activeUpdateDownloadId = preferences.getLong(PREF_PENDING_UPDATE_DOWNLOAD_ID, -1L)
+        val downloadId = activeUpdateDownloadId
+        if (downloadId == -1L) return
+
+        val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val cursor = manager.query(DownloadManager.Query().setFilterById(downloadId))
+        if (cursor == null) {
+            updateHandler.postDelayed(updateProgressPoll, 1000)
+            return
+        }
+        cursor.use {
+            if (!it.moveToFirst()) {
+                updateHandler.postDelayed(updateProgressPoll, 1000)
+                return
+            }
+            val status = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+            when (status) {
+                DownloadManager.STATUS_PENDING, DownloadManager.STATUS_RUNNING, DownloadManager.STATUS_PAUSED -> {
+                    val downloaded = it.getLong(it.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                    val total = it.getLong(it.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                    if (total > 0L) {
+                        val percent = ((downloaded * 100L) / total).toInt().coerceIn(0, 100)
+                        updateProgressBar.isIndeterminate = false
+                        updateProgressBar.progress = percent
+                        updateProgressText.text = "Güncelleme indiriliyor: %$percent"
+                    } else {
+                        updateProgressBar.isIndeterminate = true
+                        updateProgressText.text = "Güncelleme indiriliyor…"
+                    }
+                    updateHandler.postDelayed(updateProgressPoll, 500)
+                }
+                DownloadManager.STATUS_SUCCESSFUL, DownloadManager.STATUS_FAILED -> handleUpdateDownloadComplete(downloadId)
+                else -> updateHandler.postDelayed(updateProgressPoll, 1000)
+            }
+        }
     }
 
     private fun handleUpdateDownloadComplete(downloadId: Long) {
+        if (downloadId == handledUpdateDownloadId) return
         val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val cursor = manager.query(DownloadManager.Query().setFilterById(downloadId)) ?: return
         cursor.use {
             if (!it.moveToFirst()) return
             when (it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))) {
                 DownloadManager.STATUS_SUCCESSFUL -> {
+                    handledUpdateDownloadId = downloadId
+                    activeUpdateDownloadId = -1L
+                    updateHandler.removeCallbacks(updateProgressPoll)
                     val apkUri = manager.getUriForDownloadedFile(downloadId)
                     if (apkUri == null) {
                         appendLog("APK indirildi ama Android kurulum adresini açamadı.")
+                        updateProgressText.text = "İndirme tamamlandı ancak kurulum dosyası açılamadı."
                         return
                     }
                     try {
@@ -543,14 +558,24 @@ class MainActivity : AppCompatActivity() {
                         }
                         startActivity(installIntent)
                         getSharedPreferences("updates", MODE_PRIVATE).edit().remove(PREF_PENDING_UPDATE_DOWNLOAD_ID).apply()
+                        updateProgressBar.progress = 100
+                        updateProgressBar.isIndeterminate = false
+                        updateProgressText.text = "İndirme tamamlandı. Android kurulum ekranını onayla."
                         appendLog("İndirme tamamlandı. Android kurulum ekranını onayla.")
                     } catch (error: Exception) {
+                        updateProgressText.text = "Kurulum ekranı açılamadı: ${error.localizedMessage ?: "bilinmeyen hata"}"
                         appendLog("Android kurulum ekranı açılamadı: ${error.localizedMessage ?: "bilinmeyen hata"}")
                     }
                 }
                 DownloadManager.STATUS_FAILED -> {
+                    handledUpdateDownloadId = downloadId
+                    activeUpdateDownloadId = -1L
+                    updateHandler.removeCallbacks(updateProgressPoll)
+                    val reason = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
                     getSharedPreferences("updates", MODE_PRIVATE).edit().remove(PREF_PENDING_UPDATE_DOWNLOAD_ID).apply()
-                    appendLog("Güncelleme indirilemedi. İnternet bağlantısını kontrol edip yeniden dene.")
+                    updateProgressBar.visibility = View.GONE
+                    updateProgressText.text = "İndirme başarısız oldu (hata $reason). Yeniden deneyebilirsin."
+                    appendLog("Güncelleme indirilemedi (hata $reason). İnternet bağlantısını kontrol edip yeniden dene.")
                 }
             }
         }

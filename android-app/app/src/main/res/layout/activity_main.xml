@@ -30,7 +30,7 @@
                 android:id="@+id/tvAppVersion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text=" v1.0.7"
+                android:text=" v1.0.8"
                 android:textColor="#00F2FE"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -167,24 +167,6 @@
             android:textColor="#00F2FE" />
 
         <Button
-            android:id="@+id/btnEnableCallControls"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginBottom="5dp"
-            android:backgroundTint="#162138"
-            android:text="Bilgisayardan Arama Denetimini Aç"
-            android:textColor="#00F2FE" />
-
-        <TextView
-            android:id="@+id/tvCallControlStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:text="Arama tuşları için bu uygulamayı varsayılan telefon uygulaması yapman gerekir."
-            android:textColor="#C3CAD8"
-            android:textSize="12sp" />
-
-        <Button
             android:id="@+id/btnBatteryOptimization"
             android:layout_width="match_parent"
             android:layout_height="46dp"
@@ -234,6 +216,26 @@
                 android:textColor="#FFFFFF"
                 android:textSize="11sp" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvUpdateProgressText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="5dp"
+            android:textColor="#C3CAD8"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <ProgressBar
+            android:id="@+id/progressUpdateDownload"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginBottom="10dp"
+            android:max="100"
+            android:progressTint="#00F2FE"
+            android:progressBackgroundTint="#2A354A"
+            android:visibility="gone" />
 
         <Button
             android:id="@+id/btnCheckUpdates"
