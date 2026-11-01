@@ -1,8 +1,8 @@
 {
   "name": "kzbs-phonelink",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "author": "KZBS",
-  "description": "KZBS PhoneLink v1.0.9 - Windows and Android SMS bridge",
+  "description": "KZBS PhoneLink v1.0.10 - Windows and Android SMS bridge",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -37,6 +37,7 @@
       "public/**/*"
     ],
     "win": {
+      "icon": "public/assets/logo.ico",
       "target": [
         "nsis"
       ],
@@ -48,7 +49,10 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "KZBS PhoneLink"
+      "shortcutName": "KZBS PhoneLink",
+      "installerIcon": "public/assets/logo.ico",
+      "uninstallerIcon": "public/assets/logo.ico",
+      "installerHeaderIcon": "public/assets/logo.ico"
     },
     "publish": {
       "provider": "github",

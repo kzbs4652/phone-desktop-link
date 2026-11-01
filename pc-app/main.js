@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
+app.setAppUserModelId('com.kzbs.phonelink');
 process.env.PHONELINK_DATA_DIR = app.getPath('userData');
 
 // Start the local API before loading the renderer to avoid a startup race.
@@ -58,7 +59,7 @@ function createWindow() {
     frame: false, // Clean borderless modern desktop window
     title: "KZBS PhoneLink",
     backgroundColor: '#070b14',
-    icon: path.join(__dirname, 'public/assets/logo.svg'),
+    icon: path.join(__dirname, 'public/assets/logo.ico'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

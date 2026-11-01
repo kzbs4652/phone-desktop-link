@@ -1,6 +1,8 @@
-# KZBS PhoneLink v1.0.9
+# KZBS PhoneLink v1.0.10
 
 Android telefon ile Windows bilgisayar arasında yerel Wi-Fi üzerinden bağlantı kurar. PhoneLink arama özellikleri olmadan SMS eşitlemeye odaklanır. Bilgisayardaki Mesajlar ekranında `+` düğmesiyle yeni sohbet açabilir, telefon rehberinden A–Z sıralı kişi seçebilir veya numara girebilirsiniz. Bağlı telefonun pil seviyesi düzenli aralıklarla güncellenir.
+
+Windows uygulaması pencereyi tam ekran büyüttüğünüzde kullanılabilir alanı doldurur; mesaj panelleri pencere yüksekliğine göre boyutlanır. Windows uygulama, kurulum ve kaldırma simgeleri mobil uygulamadaki PhoneLink logosunu kullanır.
 
 ## İlk bağlantı
 
@@ -17,8 +19,8 @@ Telefon rehberi bilgisayara kalıcı kaydedilmez; bağlıyken yeni mesaj alıcı
 
 ## Paket oluşturma
 
-- Windows kurucusu: `pc-app/bundle_app.ps1` (`dist/KZBS-PhoneLink-Setup-v1.0.9.exe`)
-- Android APK: `android-app/build_apk.ps1` (`dist/KZBS-PhoneLink-v1.0.9.apk`)
+- Windows kurucusu: `pc-app/bundle_app.ps1` (`dist/KZBS-PhoneLink-Setup-v1.0.10.exe`)
+- Android APK: `android-app/build_apk.ps1` (`dist/KZBS-PhoneLink-v1.0.10.apk`)
 
 Android güncellemelerinin mevcut kurulumun üzerine yüklenebilmesi için `android-app/build_temp/debug.keystore` dosyasını koruyun.
 

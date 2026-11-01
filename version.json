@@ -1,16 +1,16 @@
 {
-  "version": "1.0.9",
-  "versionCode": 10,
+  "version": "1.0.10",
+  "versionCode": 11,
   "releaseDate": "2026-11-01",
-  "title": "KZBS PhoneLink v1.0.9",
-  "notes": "Bilgisayardan yeni sohbet açıp rehberden kişi seçebilir veya numara girebilirsin. Telefon pili bağlı kaldığı sürece güncellenir.",
+  "title": "KZBS PhoneLink v1.0.10",
+  "notes": "Bilgisayar uygulaması tam ekrana uyum sağlar; yeni logo pencere ve Windows kurulum simgelerinde kullanılır. Mesaj ekranı kullanılabilir alana göre büyür.",
   "pc": {
-    "version": "1.0.9",
-    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.9/KZBS-PhoneLink-Setup-v1.0.9.exe"
+    "version": "1.0.10",
+    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.10/KZBS-PhoneLink-Setup-v1.0.10.exe"
   },
   "android": {
-    "version": "1.0.9",
-    "versionCode": 10,
-    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.9/KZBS-PhoneLink-v1.0.9.apk"
+    "version": "1.0.10",
+    "versionCode": 11,
+    "url": "https://github.com/kzbs4652/phone-desktop-link/releases/download/v1.0.10/KZBS-PhoneLink-v1.0.10.apk"
   }
 }
